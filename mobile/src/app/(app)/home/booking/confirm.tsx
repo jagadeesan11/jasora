@@ -14,6 +14,7 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useCreateBooking, useCustomerAsset } from '@/hooks/use-booking';
 import { useBusinessHours, useShopClosures } from '@/hooks/use-hours';
+import { useAppSettings } from '@/hooks/use-app-settings';
 import { useServiceDetail } from '@/hooks/use-catalog';
 import type { PromoValidation } from '@/hooks/use-promo';
 import { useTheme } from '@/hooks/use-theme';
@@ -66,8 +67,9 @@ export default function BookingConfirmScreen() {
 
   // The shop's real hours, so the picker cannot offer a slot create_booking
   // will refuse. Both read the same rows.
-  const { data: hours } = useBusinessHours();
-  const { data: closures } = useShopClosures();
+  const { shopId } = useAppSettings();
+  const { data: hours } = useBusinessHours(shopId);
+  const { data: closures } = useShopClosures(shopId);
 
   const days = useMemo(() => getBookableDays(new Date(), hours, closures), [hours, closures]);
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);

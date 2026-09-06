@@ -1,10 +1,12 @@
 import { PageHeader } from '@/components/page-header';
 import { ReportsView } from '@/components/reports/reports-view';
+import { getShopContext } from '@/lib/shop';
 import { createClient } from '@/lib/supabase/server';
 import type { ReportRow } from '@/types/reports';
 
 export default async function ReportsPage() {
   const supabase = await createClient();
+  const { shop } = await getShopContext();
   const { data, error } = await supabase
     .from('bookings')
     .select(
@@ -15,6 +17,7 @@ export default async function ReportsPage() {
        invoices(number),
        service_feedback(rating)`,
     )
+    .eq('shop_id', shop?.id ?? '')
     .order('scheduled_at', { ascending: false })
     .returns<ReportRow[]>();
 

@@ -3,8 +3,8 @@ import type { UserRole } from '@/hooks/use-profile';
 /**
  * Who sees the shop-side app rather than the customer one.
  *
- * Deliberately mirrors what `private.is_admin()` accepts in the database, plus
- * technicians — they get a narrower view of the same board, and the RLS policy
+ * Mirrors the staff roles the database recognises — admin and shop_owner —
+ * plus technicians — they get a narrower view of the same board, and the RLS policy
  * on bookings already limits them to their own assigned jobs.
  *
  * This decides navigation only. It is not a permission: every read and write

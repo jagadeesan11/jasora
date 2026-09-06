@@ -108,7 +108,16 @@ function BookingCard({ booking }: { booking: BookingListItem }) {
         />
       </View>
 
-      <ThemedText type="small" themeColor="textSecondary">
+      {/* Which shop is doing the work. A customer books across shops now, so
+          the service name alone no longer says who has the job — and two shops
+          may well sell a service by the same name. */}
+      {booking.shops?.name ? (
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+          {booking.shops.name}
+        </ThemedText>
+      ) : null}
+
+      <ThemedText type="small" themeColor="textMuted">
         {DATE.format(new Date(booking.scheduled_at))}
       </ThemedText>
 

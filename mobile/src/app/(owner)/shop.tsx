@@ -8,9 +8,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui/card';
 import { Radius, Spacing } from '@/constants/theme';
-import { useAppSettings } from '@/hooks/use-app-settings';
 import { useAuth } from '@/hooks/use-auth';
 import { useBusinessHours, useShopClosures } from '@/hooks/use-hours';
+import { useMyShop, useMyShops } from '@/hooks/use-my-shop';
 import { useOwnerBookings } from '@/hooks/use-owner';
 import { useOwnerInvoices } from '@/hooks/use-owner-invoices';
 import { useReportBookings } from '@/hooks/use-owner-reports';
@@ -48,14 +48,19 @@ function prettyTime(time: string): string {
 export default function OwnerShopScreen() {
   const theme = useTheme();
   const { signOut } = useAuth();
-  const { settings } = useAppSettings();
+  // The shop being managed. Deliberately not useAppSettings(), which resolves
+  // the shop this person books with as a customer — the same thing while they
+  // run one shop, and the wrong one as soon as they run two.
+  const { shop: managed } = useMyShop();
 
   const team = useTeam();
   const bookings = useOwnerBookings();
   const invoices = useOwnerInvoices();
   const reports = useReportBookings();
-  const hours = useBusinessHours();
-  const closures = useShopClosures();
+  const shopId = managed?.id ?? null;
+  const { data: myShops = [] } = useMyShops();
+  const hours = useBusinessHours(shopId);
+  const closures = useShopClosures(shopId);
 
   const monthToDate = useMemo(() => {
     const { from, to } = periodBounds('Month');
@@ -123,13 +128,13 @@ export default function OwnerShopScreen() {
 
           <View style={styles.body}>
             <Card style={styles.identity}>
-              <ShopAvatar size={44} />
+              <ShopAvatar url={managed?.logo_url ?? null} name={managed?.name} size={44} />
               <View style={styles.identityCopy}>
                 <ThemedText type="bodyMedium" numberOfLines={1}>
-                  {settings.shop_name}
+                  {managed?.name ?? 'Shop'}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                  {[settings.shop_city, openLine].filter(Boolean).join(' · ')}
+                  {[managed?.city, openLine].filter(Boolean).join(' · ')}
                 </ThemedText>
               </View>
             </Card>
@@ -169,8 +174,19 @@ export default function OwnerShopScreen() {
               title="Hours & availability"
               subtitle={`${daysLine}${blocked > 0 ? ` · ${blocked} day${blocked === 1 ? '' : 's'} blocked` : ''}`}
               onPress={() => router.push('/(owner)/hours')}
-              last
+              last={myShops.length < 2}
             />
+            {/* Only for someone who runs more than one. With a single shop this
+                would be a control that changes nothing, and the picker it opens
+                would have one option. */}
+            {myShops.length > 1 ? (
+              <Row
+                title="Switch shop"
+                subtitle={`Managing ${managed?.name ?? 'Shop'}`}
+                onPress={() => router.push('/(owner)/choose-shop')}
+                last
+              />
+            ) : null}
           </View>
 
           <View style={styles.body}>

@@ -16,7 +16,10 @@ import { createClient } from '@/lib/supabase/client';
 
 const BUCKET = 'service-images';
 /** Kept apart from service photos so a shop's identity is not mixed in with
- *  its catalogue, and so it is obvious what may be deleted. */
+ *  its catalogue, and so it is obvious what may be deleted. Nested under the
+ *  shop's id because the storage policy grants a shop its own first path
+ *  segment — a bare 'brand/' is now writable only by a platform admin, which
+ *  is exactly the upload this used to attempt. */
 const FOLDER = 'brand';
 
 /**
@@ -34,9 +37,11 @@ const FOLDER = 'brand';
 export function ShopLogoField({
   value,
   onChange,
+  shopId,
 }: {
   value: string | null;
   onChange: (url: string | null) => void;
+  shopId: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -61,7 +66,7 @@ export function ShopLogoField({
       // Timestamped rather than a fixed name: the old file stays reachable
       // until it is replaced, and no CDN cache can serve yesterday's logo
       // under today's URL.
-      const path = `${FOLDER}/logo-${Date.now()}.${extension}`;
+      const path = `${shopId}/${FOLDER}/logo-${Date.now()}.${extension}`;
 
       const supabase = createClient();
       const { error } = await supabase.storage
@@ -88,15 +93,21 @@ export function ShopLogoField({
       <Label htmlFor="shop-logo">Shop logo</Label>
 
       <div className="flex items-center gap-4">
-        <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
+        {/* `relative` is what `fill` positions against. Sized by the frame
+            rather than by the image: with explicit width/height the border
+            makes the content box 62px, flex-shrink takes the width to 62 while
+            the height stays pinned at 64, and a non-square logo renders
+            squashed — which is exactly what Next's aspect-ratio warning is
+            for. `fill` has no dimensions to disagree about. */}
+        <div className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">
           {value ? (
             <Image
               src={value}
               alt="Shop logo"
-              width={64}
-              height={64}
+              fill
+              sizes="64px"
               unoptimized
-              className="size-16 object-contain"
+              className="object-contain p-1"
             />
           ) : (
             <span className="text-xs text-muted-foreground">None</span>

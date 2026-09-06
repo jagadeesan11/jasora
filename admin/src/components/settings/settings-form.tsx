@@ -9,18 +9,27 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { ShopLogoField } from '@/components/settings/shop-logo-field';
 import { createClient } from '@/lib/supabase/client';
-import type { AppSettings } from '@/types/database';
+import type { ShopSettings } from '@/types/database';
 
-export function SettingsForm({ settings }: { settings: AppSettings }) {
+/**
+ * The shop front, as the admin edits it.
+ *
+ * These fields lived in app_settings, a single row for a single shop. They are
+ * columns on that shop's row now, so the form takes the shop it is editing
+ * rather than assuming there is only one. The field names shed their shop_
+ * prefix in the move — shops.name, not shops.shop_name — which is why the
+ * payload below no longer matches the input names one for one.
+ */
+export function SettingsForm({ settings }: { settings: ShopSettings }) {
   const router = useRouter();
 
-  const [shopName, setShopName] = useState(settings.shop_name);
-  const [logoUrl, setLogoUrl] = useState<string | null>(settings.shop_logo_url ?? null);
+  const [shopName, setShopName] = useState(settings.name);
+  const [logoUrl, setLogoUrl] = useState<string | null>(settings.logo_url ?? null);
   const [supportEmail, setSupportEmail] = useState(settings.support_email ?? '');
   const [supportPhone, setSupportPhone] = useState(settings.support_phone ?? '');
-  const [addressLine, setAddressLine] = useState(settings.shop_address_line ?? '');
-  const [city, setCity] = useState(settings.shop_city ?? '');
-  const [postalCode, setPostalCode] = useState(settings.shop_postal_code ?? '');
+  const [addressLine, setAddressLine] = useState(settings.address_line ?? '');
+  const [city, setCity] = useState(settings.city ?? '');
+  const [postalCode, setPostalCode] = useState(settings.postal_code ?? '');
   const [codEnabled, setCodEnabled] = useState(settings.cod_enabled);
   const [onlineEnabled, setOnlineEnabled] = useState(settings.online_payment_enabled);
   const [privacyUrl, setPrivacyUrl] = useState(settings.privacy_url ?? '');
@@ -34,21 +43,30 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (!shopName.trim()) {
+      // The column refuses this too. Caught here so it reads as a sentence
+      // rather than a check-constraint violation, and because a blank name is
+      // invisible in the app rather than obviously broken: it empties the
+      // sign-in screen, the home header and the invoice footer at once.
+      setError('The shop needs a name.');
+      return;
+    }
+
     setError(null);
     setSaved(false);
     setIsSubmitting(true);
 
     const supabase = createClient();
     const { error: saveError } = await supabase
-      .from('app_settings')
+      .from('shops')
       .update({
-        shop_name: shopName,
-        shop_logo_url: logoUrl,
+        name: shopName.trim(),
+        logo_url: logoUrl,
         support_email: supportEmail || null,
         support_phone: supportPhone || null,
-        shop_address_line: addressLine || null,
-        shop_city: city || null,
-        shop_postal_code: postalCode || null,
+        address_line: addressLine || null,
+        city: city || null,
+        postal_code: postalCode || null,
         cod_enabled: codEnabled,
         online_payment_enabled: onlineEnabled,
         privacy_url: privacyUrl || null,
@@ -56,7 +74,7 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
         instagram_url: instagramUrl.trim() || null,
         whatsapp_number: whatsappNumber.replace(/[^+0-9]/g, '') || null,
       })
-      .eq('id', true);
+      .eq('id', settings.id);
 
     setIsSubmitting(false);
     if (saveError) {
@@ -97,7 +115,7 @@ export function SettingsForm({ settings }: { settings: AppSettings }) {
           />
         </div>
 
-        <ShopLogoField value={logoUrl} onChange={setLogoUrl} />
+        <ShopLogoField value={logoUrl} onChange={setLogoUrl} shopId={settings.id} />
       </section>
 
       <section className="space-y-4">

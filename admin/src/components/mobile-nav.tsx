@@ -17,7 +17,17 @@ import { ThemeToggle } from '@/components/theme-toggle';
  * theme toggle and sign-out that otherwise live in the sidebar footer — so
  * nothing reachable on desktop is missing on a phone.
  */
-export function MobileNav({ email, role }: { email?: string; role?: string | null }) {
+export function MobileNav({
+  email,
+  role,
+  shopName,
+}: {
+  email?: string;
+  role?: string | null;
+  // Named in the bar because the sidebar that carries it on desktop is behind
+  // a menu button here, and every list on the screen below shows one shop.
+  shopName?: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -58,8 +68,16 @@ export function MobileNav({ email, role }: { email?: string; role?: string | nul
 
         <div className="flex min-w-0 items-center gap-2">
           <NexoraMark className="size-6 shrink-0 text-foreground" />
-          <span className="truncate text-sm font-semibold tracking-tight">Nexora</span>
-          <span className="shrink-0 text-[11px] text-muted-foreground">Admin</span>
+          {shopName ? (
+            <span className="truncate text-sm font-semibold tracking-tight" title={shopName}>
+              {shopName}
+            </span>
+          ) : (
+            <>
+              <span className="truncate text-sm font-semibold tracking-tight">Nexora</span>
+              <span className="shrink-0 text-[11px] text-muted-foreground">Admin</span>
+            </>
+          )}
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 
 import { PageHeader } from '@/components/page-header';
 import { SupportQueue } from '@/components/support/support-queue';
+import { getShopContext } from '@/lib/shop';
 import { createClient } from '@/lib/supabase/server';
 import type { AccountMatch, SupportRequest } from '@/types/support';
 
@@ -57,11 +58,13 @@ async function matchAccounts(requests: SupportRequest[]): Promise<Record<string,
 
 export default async function SupportPage() {
   const supabase = await createClient();
+  const { shop } = await getShopContext();
   const { data, error } = await supabase
     .from('support_requests')
     .select(
       'id, kind, contact_raw, contact_email, contact_phone, message, status, admin_note, created_at, resolved_at',
     )
+    .eq('shop_id', shop?.id ?? '')
     .order('created_at', { ascending: false })
     .returns<SupportRequest[]>();
 

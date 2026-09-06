@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
+import { useMyShopId } from '@/hooks/use-my-shop';
 
 export interface OwnerService {
   id: string;
@@ -22,13 +23,20 @@ const SERVICE_FIELDS =
   'categories(name), pricing_rules(id, condition, price), addons(id, name, price)';
 
 export function useOwnerServices() {
+  // Scoped to the shop being managed. The read policy on services is
+  // deliberately permissive — a catalogue is public — so this filter, not RLS,
+  // is what keeps another shop's rows out of this screen.
+  const shopId = useMyShopId();
+
   return useQuery({
-    queryKey: ['owner', 'services'],
+    queryKey: ['owner', 'services', shopId],
+    enabled: Boolean(shopId),
     staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('services')
         .select(SERVICE_FIELDS)
+        .eq('shop_id', shopId!)
         .order('name')
         .returns<OwnerService[]>();
 
@@ -181,8 +189,14 @@ export interface OwnerPromo {
  * ever sees the advertised, in-window ones. Same query, different answer.
  */
 export function useOwnerPromoCodes() {
+  // Scoped to the shop being managed. The read policy on promo_codes is
+  // deliberately permissive — a catalogue is public — so this filter, not RLS,
+  // is what keeps another shop's rows out of this screen.
+  const shopId = useMyShopId();
+
   return useQuery({
-    queryKey: ['owner', 'promos'],
+    queryKey: ['owner', 'promos', shopId],
+    enabled: Boolean(shopId),
     staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -191,6 +205,7 @@ export function useOwnerPromoCodes() {
           'id, code, description, discount_type, discount_value, max_discount_amount, min_order_value, ' +
             'starts_at, ends_at, is_active, max_redemptions, per_customer_limit, applies_to, is_public',
         )
+        .eq('shop_id', shopId!)
         .order('created_at', { ascending: false })
         .returns<OwnerPromo[]>();
 
@@ -202,6 +217,7 @@ export function useOwnerPromoCodes() {
 
 export function useSavePromoCode() {
   const queryClient = useQueryClient();
+  const shopId = useMyShopId();
 
   return useMutation({
     mutationFn: async (input: {
@@ -211,6 +227,7 @@ export function useSavePromoCode() {
       discountValue: number;
       isPublic: boolean;
     }) => {
+      if (!shopId) throw new Error('No shop selected.');
       // Stored upper-case so the unique index and the customer's typing agree.
       const row = {
         code: input.code.trim().toUpperCase(),
@@ -221,7 +238,10 @@ export function useSavePromoCode() {
 
       const query = input.id
         ? supabase.from('promo_codes').update(row).eq('id', input.id).select('id')
-        : supabase.from('promo_codes').insert(row).select('id');
+        // A promo code is a root row — no parent to take its shop from — so
+        // the shop is stated here. Phase 2 made the code unique per shop rather
+        // than globally, which is what lets two shops both run a SUMMER10.
+        : supabase.from('promo_codes').insert({ ...row, shop_id: shopId }).select('id');
 
       const { data, error } = await query;
 

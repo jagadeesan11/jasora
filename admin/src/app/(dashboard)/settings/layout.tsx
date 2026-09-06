@@ -4,10 +4,12 @@ import { requireAdmin } from '@/lib/auth';
  * Settings is admin-only, enforced here rather than in the page.
  *
  * Note what this does and does not do: it stops the screen rendering for
- * anyone who is not an admin. The form itself writes to app_settings from the
- * browser under the caller's own session, and the RLS policy on that table
- * accepts `is_admin()`, which counts shop owners too. Closing that last gap
- * needs a database change, not a change here.
+ * anyone who is not a platform admin. The form writes to the shop's own row
+ * from the browser under the caller's own session, and shops_admin_update now
+ * accepts the platform tier or a member of that shop — so a shop owner editing
+ * here changes their shop and no other. That gap used to be open, when the
+ * policy resolved through the tenant-blind is_admin(); it was closed in the
+ * database, which is where it had to be.
  */
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();

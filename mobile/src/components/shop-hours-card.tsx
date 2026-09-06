@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { Radius, Spacing } from '@/constants/theme';
 import { useBusinessHours, useShopClosures } from '@/hooks/use-hours';
+import { useAppSettings } from '@/hooks/use-app-settings';
 import { useTheme } from '@/hooks/use-theme';
 import { openStatus, weekSchedule } from '@/lib/scheduling';
 
@@ -21,8 +22,9 @@ export function ShopHoursCard() {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
 
-  const { data: hours } = useBusinessHours();
-  const { data: closures } = useShopClosures();
+  const { shopId } = useAppSettings();
+  const { data: hours } = useBusinessHours(shopId);
+  const { data: closures } = useShopClosures(shopId);
 
   const week = weekSchedule(hours);
   // Nothing to say until the hours arrive; an empty card is worse than none.

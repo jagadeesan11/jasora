@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { requireShopId } from '@/lib/shop';
 import { createClient } from '@/lib/supabase/server';
 import type { UserRole } from '@/types/database';
 import type { AppliesTo, DiscountType } from '@/types/promo';
@@ -15,8 +16,8 @@ export interface ActionResult {
  * A Server Action is a public endpoint, so the caller is re-checked here
  * rather than trusting that they got as far as rendering the page.
  *
- * Everything writes as the caller: the RLS policies on promo_codes gate on
- * private.is_admin(), so a service key would only remove the safety net.
+ * Everything writes as the caller: the RLS policies on promo_codes are scoped
+ * to the caller's own shops, so a service key would only remove the safety net.
  */
 async function requireAdmin() {
   const supabase = await createClient();
@@ -104,7 +105,11 @@ export async function createPromoCode(fd: FormData): Promise<ActionResult> {
   const problem = validate(input);
   if (problem) return { ok: false, message: problem };
 
-  const { error } = await caller.supabase.from('promo_codes').insert(input);
+  // Promo codes are unique per shop rather than globally since phase 2, so
+  // the shop has to be stated: without it the insert fails on NOT NULL.
+  const { error } = await caller.supabase
+    .from('promo_codes')
+    .insert({ ...input, shop_id: await requireShopId() });
   if (error) {
     return {
       ok: false,

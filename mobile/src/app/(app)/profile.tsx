@@ -14,7 +14,7 @@ import { useTheme } from '@/hooks/use-theme';
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const { settings } = useAppSettings();
+  const { settings, options } = useAppSettings();
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const { data: bookingCount } = useBookingCount(user?.id);
@@ -74,8 +74,18 @@ export default function ProfileScreen() {
           </ListGroup>
 
           <ListGroup title="Settings">
+            {/* Only when there is somewhere else to go. With one shop the row
+                would be a control that does nothing. */}
+            {options.length > 1 ? (
+              <ListRow
+                first
+                label="Shop"
+                value={settings.shop_name}
+                onPress={() => router.push('/settings/shop')}
+              />
+            ) : null}
             <ListRow
-              first
+              first={options.length <= 1}
               label="Account settings"
               onPress={() => router.push('/settings/account')}
             />

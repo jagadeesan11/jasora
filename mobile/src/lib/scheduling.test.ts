@@ -21,17 +21,38 @@ describe('getBookableDays', () => {
 });
 
 describe('getTimeSlotsForDay', () => {
-  it('generates half-hour slots between business hours for a future day', () => {
-    const now = new Date('2026-08-23T08:00:00');
+  it('generates half-hour slots across the booking window for a future day', () => {
+    const now = new Date('2026-08-23T05:00:00');
     const day = new Date('2026-08-25T00:00:00');
     const slots = getTimeSlotsForDay(day, now);
 
-    expect(slots[0].getHours()).toBe(9);
+    expect(slots[0].getHours()).toBe(7);
     expect(slots[0].getMinutes()).toBe(0);
-    expect(slots.at(-1)?.getHours()).toBe(17);
+    expect(slots.at(-1)?.getHours()).toBe(20);
     expect(slots.at(-1)?.getMinutes()).toBe(30);
-    // 9:00 to 17:30 inclusive, every 30 minutes = 18 slots
-    expect(slots).toHaveLength(18);
+    // 7:00 to 20:30 inclusive, every 30 minutes = 28 slots
+    expect(slots).toHaveLength(28);
+  });
+
+  it('offers slots outside the shop\'s opening hours', () => {
+    // The point of the change: hours say when the shop is staffed, not what may
+    // be requested. This shop closes at 17:00 and 19:00 is still offered.
+    const now = new Date('2026-08-23T05:00:00');
+    const day = new Date('2026-08-25T00:00:00');
+    const hours = [
+      { weekday: 2, is_open: true, opens_at: '09:00', closes_at: '17:00' },
+    ];
+
+    const slots = getTimeSlotsForDay(day, now, hours);
+    expect(slots.some((s) => s.getHours() === 19)).toBe(true);
+  });
+
+  it('still offers nothing on a date the shop has blocked', () => {
+    // A closure is the shop naming a day it will not work, which is a different
+    // thing from the hours it usually keeps.
+    const now = new Date('2026-08-23T05:00:00');
+    const day = new Date('2026-08-25T00:00:00');
+    expect(getTimeSlotsForDay(day, now, undefined, [{ closed_on: '2026-08-25' }])).toHaveLength(0);
   });
 
   it('excludes slots already in the past when the day is today', () => {
@@ -44,8 +65,8 @@ describe('getTimeSlotsForDay', () => {
     expect(slots.every((slot) => slot > now)).toBe(true);
   });
 
-  it('returns an empty list when business hours for today have already ended', () => {
-    const now = new Date('2026-08-23T19:00:00');
+  it('returns an empty list once the booking window for today has passed', () => {
+    const now = new Date('2026-08-23T21:30:00');
     const day = new Date('2026-08-23T00:00:00');
     expect(getTimeSlotsForDay(day, now)).toHaveLength(0);
   });

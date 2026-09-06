@@ -2,6 +2,7 @@ import { CalendarCheck, IndianRupee, Layers, Users, Wrench } from 'lucide-react'
 import Link from 'next/link';
 
 import { PageHeader } from '@/components/page-header';
+import { getShopContext } from '@/lib/shop';
 import { createClient } from '@/lib/supabase/server';
 import { cn } from '@/lib/utils';
 
@@ -46,11 +47,23 @@ interface RecentBooking {
 
 export default async function DashboardHome() {
   const supabase = await createClient();
+  const { shop } = await getShopContext();
+  const shopId = shop?.id ?? '';
 
+  // Counts for this shop. The booking queries below need no filter: bookings
+  // are scoped by RLS to the shops the caller is staff at.
   const [categories, services, technicians, bookings, recent] = await Promise.all([
-    supabase.from('categories').select('id', { count: 'exact', head: true }),
-    supabase.from('services').select('id', { count: 'exact', head: true }).eq('is_active', true),
-    supabase.from('technicians').select('id', { count: 'exact', head: true }).eq('status', 'active'),
+    supabase.from('categories').select('id', { count: 'exact', head: true }).eq('shop_id', shopId),
+    supabase
+      .from('services')
+      .select('id', { count: 'exact', head: true })
+      .eq('shop_id', shopId)
+      .eq('is_active', true),
+    supabase
+      .from('technicians')
+      .select('id', { count: 'exact', head: true })
+      .eq('shop_id', shopId)
+      .eq('status', 'active'),
     supabase.from('bookings').select('status, total_price'),
     supabase
       .from('bookings')

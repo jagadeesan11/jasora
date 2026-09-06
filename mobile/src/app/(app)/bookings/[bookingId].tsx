@@ -96,6 +96,10 @@ export default function BookingDetailScreen() {
           </View>
 
           <Card style={styles.summary}>
+            {/* Who is doing the work. Above the status because it is the thing
+                a customer needs when something is wrong with the job and they
+                are deciding who to call. */}
+            {booking.shops?.name && <SummaryRow label="Shop" value={booking.shops.name} />}
             <SummaryRow label="Status" value={STATUS_LABELS[booking.status] ?? booking.status} />
             {booking.technicians?.name && (
               <SummaryRow label="Technician" value={booking.technicians.name} />

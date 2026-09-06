@@ -15,6 +15,7 @@ import {
   useShopClosures,
   useUpdateHours,
 } from '@/hooks/use-hours';
+import { useMyShopId } from '@/hooks/use-my-shop';
 import { useTheme } from '@/hooks/use-theme';
 import { formatClock, type BusinessHours } from '@/lib/scheduling';
 
@@ -38,10 +39,11 @@ export default function OwnerHoursScreen() {
   const [picking, setPicking] = useState<{ weekday: number; edge: 'opens' | 'closes' } | null>(
     null,
   );
-  const hours = useBusinessHours();
-  const closures = useShopClosures();
-  const updateHours = useUpdateHours();
-  const addClosure = useAddClosure();
+  const shopId = useMyShopId();
+  const hours = useBusinessHours(shopId);
+  const closures = useShopClosures(shopId);
+  const updateHours = useUpdateHours(shopId);
+  const addClosure = useAddClosure(shopId);
   const removeClosure = useRemoveClosure();
 
   async function run(fn: () => Promise<unknown>) {

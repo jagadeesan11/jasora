@@ -10,7 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui/card';
 import { ErrorState, SkeletonList } from '@/components/ui/feedback';
 import { Radius, Spacing } from '@/constants/theme';
-import { useAppSettings } from '@/hooks/use-app-settings';
+import { useMyShop } from '@/hooks/use-my-shop';
 import {
   useOwnerBookings,
   useTechnicians,
@@ -50,7 +50,8 @@ function vehicleOf(b: OwnerBooking): string | null {
 
 export default function OwnerInboxScreen() {
   const theme = useTheme();
-  const { settings } = useAppSettings();
+  // The shop being managed, not the one this person books with as a customer.
+  const { shop: managed } = useMyShop();
   const { data, isLoading, isError, error, refetch, isRefetching } = useOwnerBookings();
   const { data: technicians } = useTechnicians();
   const update = useUpdateBooking();
@@ -98,7 +99,7 @@ export default function OwnerInboxScreen() {
           <View style={styles.header}>
             <View style={styles.headerCopy}>
               <ThemedText type="label" themeColor="textMuted" numberOfLines={1}>
-                {[settings.shop_name, settings.shop_city].filter(Boolean).join(' · ')}
+                {[managed?.name, managed?.city].filter(Boolean).join(' · ')}
               </ThemedText>
               {/* "Today" rather than a greeting: this screen is a day's board,
                   and the heading should say which day it is showing. */}
@@ -111,7 +112,7 @@ export default function OwnerInboxScreen() {
               hitSlop={8}
               style={({ pressed }) => [pressed && { opacity: 0.8 }]}
             >
-              <ShopAvatar size={40} />
+              <ShopAvatar url={managed?.logo_url ?? null} name={managed?.name} size={40} />
             </Pressable>
           </View>
 

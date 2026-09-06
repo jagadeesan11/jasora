@@ -21,7 +21,7 @@ import { supabase } from '@/lib/supabase';
  * can't get in has somewhere to say why.
  */
 export default function SignInHelpScreen() {
-  const { settings } = useAppSettings();
+  const { settings, shopId } = useAppSettings();
   const [contact, setContact] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +35,13 @@ export default function SignInHelpScreen() {
       return;
     }
 
+    if (!shopId) {
+      // Still resolving, or no shop is configured at all. Saying so beats the
+      // constraint violation the insert would otherwise return verbatim.
+      setError('Still loading. Try again in a moment.');
+      return;
+    }
+
     setError(null);
     setIsSubmitting(true);
     // Deliberately no .select(): the row is not readable by the person who
@@ -42,6 +49,9 @@ export default function SignInHelpScreen() {
     // refused — and the queue must stay unreadable, or it becomes a way to
     // find out who has an account.
     const { error: insertError } = await supabase.from('support_requests').insert({
+      // Which shop the request is for. There is no session yet and no parent
+      // row to derive it from, so it is sent explicitly.
+      shop_id: shopId,
       kind: 'password_reset',
       contact_raw: contact.trim(),
       contact_email: parsed.kind === 'email' ? parsed.email : null,

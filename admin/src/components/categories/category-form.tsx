@@ -55,9 +55,14 @@ function slugify(value: string) {
 export function CategoryForm({
   category,
   inputTemplate,
+  shopId,
 }: {
   category?: Category;
   inputTemplate?: InputTemplate;
+  // Which shop a new category belongs to. Resolved on the server, where the
+  // caller's memberships are, and passed down — a client component cannot
+  // work it out for itself without trusting something the browser holds.
+  shopId: string;
 }) {
   const router = useRouter();
   const isEditing = Boolean(category);
@@ -111,7 +116,7 @@ export function CategoryForm({
       } else {
         const { data: newTemplate, error: templateError } = await supabase
           .from('input_templates')
-          .insert(templatePayload)
+          .insert({ ...templatePayload, shop_id: shopId })
           .select('id')
           .single();
         if (templateError || !newTemplate) {
@@ -141,7 +146,9 @@ export function CategoryForm({
         return;
       }
     } else {
-      const { error: insertError } = await supabase.from('categories').insert(categoryPayload);
+      const { error: insertError } = await supabase
+        .from('categories')
+        .insert({ ...categoryPayload, shop_id: shopId });
       if (insertError) {
         setError(insertError.message);
         setIsSubmitting(false);
