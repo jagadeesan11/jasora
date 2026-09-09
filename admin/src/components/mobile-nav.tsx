@@ -3,7 +3,7 @@
 import { Menu, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { NexoraMark } from '@/components/nexora-mark';
+import { JasoraMark } from '@/components/jasora-mark';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { SignOutButton } from '@/components/sign-out-button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -67,14 +67,14 @@ export function MobileNav({
         </button>
 
         <div className="flex min-w-0 items-center gap-2">
-          <NexoraMark className="size-6 shrink-0 text-foreground" />
+          <JasoraMark className="size-6 shrink-0 text-foreground" />
           {shopName ? (
             <span className="truncate text-sm font-semibold tracking-tight" title={shopName}>
               {shopName}
             </span>
           ) : (
             <>
-              <span className="truncate text-sm font-semibold tracking-tight">Nexora</span>
+              <span className="truncate text-sm font-semibold tracking-tight">Jasora</span>
               <span className="shrink-0 text-[11px] text-muted-foreground">Admin</span>
             </>
           )}
@@ -101,9 +101,9 @@ export function MobileNav({
           >
             <div className="flex items-center justify-between px-5 py-4">
               <div className="flex items-center gap-2.5">
-                <NexoraMark className="size-7 text-foreground" />
+                <JasoraMark className="size-7 text-foreground" />
                 <div className="leading-tight">
-                  <div className="text-sm font-semibold tracking-tight">Nexora</div>
+                  <div className="text-sm font-semibold tracking-tight">Jasora</div>
                   <div className="text-[11px] text-muted-foreground">Admin</div>
                 </div>
               </div>

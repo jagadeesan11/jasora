@@ -1,25 +1,29 @@
 {
   "expo": {
-    "name": "Nexora",
-    "slug": "nexora-services",
+    "name": "Jasora",
+    "slug": "jasora-services",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "nexora",
+    "scheme": "jasora",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.nexora.services.app",
+      "bundleIdentifier": "com.jasora.app",
       "supportsTablet": false
     },
     "android": {
-      "package": "com.nexora.services.app",
+      "package": "com.jasora.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0A1040",
+        "backgroundColor": "#052240",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -30,9 +34,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0A1040",
+          "backgroundColor": "#dee2e3",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 220
+          "imageWidth": 280
         }
       ],
       [
@@ -47,6 +51,14 @@
           "faceIDPermission": "Allow $(PRODUCT_NAME) to use Face ID to protect your saved session."
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to show shops that can serve your area.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
+      ],
       "expo-sharing"
     ],
     "experiments": {
@@ -56,9 +68,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "583906ed-fcb2-401e-8be0-25304d4ed9f2"
+        "projectId": "3111870a-4fd0-454d-839e-03addcdfde0e"
       }
     },
-    "owner": "nexora-technologies"
+    "owner": "jasora-technologies"
   }
 }

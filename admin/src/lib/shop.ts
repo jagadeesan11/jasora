@@ -20,7 +20,7 @@ import { createClient } from '@/lib/supabase/server';
  * is withdrawn stops working the moment their membership does.
  */
 
-const SHOP_COOKIE = 'nexora_shop';
+const SHOP_COOKIE = 'jasora_shop';
 
 export interface AdminShop {
   id: string;

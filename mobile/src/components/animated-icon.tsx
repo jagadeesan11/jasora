@@ -12,9 +12,17 @@ import { Animated, StyleSheet } from 'react-native';
  * fades itself out so the transition reads as one continuous screen.
  *
  * Replaces the Expo template's animated logo, which rendered Expo's own
- * branding and referenced template artwork removed during the Nexora rebrand.
+ * branding and referenced template artwork removed during the rebrand.
  */
-const BRAND_GROUND = '#0A1A20';
+/**
+ * These three must track app.json's expo-splash-screen block exactly —
+ * backgroundColor, and imageWidth against the artwork's own aspect. The whole
+ * point of the overlay is that the handoff is invisible, so a ground that
+ * disagrees flashes and a size that disagrees jumps.
+ */
+const BRAND_GROUND = '#dee2e3';
+const MARK_WIDTH = 280;
+const MARK_HEIGHT = Math.round((MARK_WIDTH * 718) / 876);
 
 export function AnimatedSplashOverlay() {
   // Lazy useState rather than useRef().current: the value must be created
@@ -69,5 +77,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 10,
   },
-  mark: { width: 140, height: 140 },
+  mark: { width: MARK_WIDTH, height: MARK_HEIGHT },
 });

@@ -5,16 +5,20 @@ import { supabase } from '@/lib/supabase';
 import type { Category, Service, ServiceWithPricing } from '@/types';
 
 /**
- * What this shop sells.
+ * What a shop sells.
  *
- * Scoped to the current shop. Catalogue rows stay readable to everyone by
- * policy — a shop front is meant to be browsable before anyone signs in — so
- * nothing but this filter stops ten shops' categories arriving as one list.
- * The shop comes from the hook rather than the caller because there is only
- * one right answer for a customer: the shop they are booking with.
+ * Catalogue rows stay readable to everyone by policy — a shop front is meant to
+ * be browsable before anyone signs in — so nothing but this filter stops ten
+ * shops' categories arriving as one list.
+ *
+ * Defaults to the shop the app is in, which is what home and the booking flow
+ * want. The shop page passes its own id instead: it is reachable by deep link,
+ * and it should show that shop's catalogue on the first render rather than
+ * whatever was selected a moment ago.
  */
-export function useCategories() {
-  const { shopId } = useAppSettings();
+export function useCategories(forShopId?: string | null) {
+  const { shopId: currentShopId } = useAppSettings();
+  const shopId = forShopId ?? currentShopId;
 
   return useQuery({
     queryKey: ['categories', shopId],

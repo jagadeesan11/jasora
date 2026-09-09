@@ -49,5 +49,11 @@ example
 # *.json patterns above deliberately don't exist because app.json, eas.json
 # and tsconfig.json all need tracking, so name the shape of these keys.
 *-service-account*.json
+# Google Play service-account keys, whatever cloud project issued them.
 nexora-*-*.json
+jasora-*-*.json
 google-play-*.json
+
+# Written by `eas credentials` when downloading credentials locally: holds the
+# keystore passwords and key alias in plaintext.
+credentials.json

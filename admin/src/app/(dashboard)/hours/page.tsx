@@ -1,6 +1,8 @@
 import { PageHeader } from '@/components/page-header';
+import { CapacityCard } from '@/components/hours/capacity-card';
 import { ClosuresCard, type ClosureRow } from '@/components/hours/closures-card';
 import { HoursForm } from '@/components/hours/hours-form';
+import { ShopLocationCard } from '@/components/shops/shop-location-card';
 import type { DayInput } from '@/app/(dashboard)/hours/actions';
 import { getShopContext } from '@/lib/shop';
 import { createClient } from '@/lib/supabase/server';
@@ -16,6 +18,18 @@ export default async function HoursPage() {
   const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
     today.getDate(),
   ).padStart(2, '0')}`;
+
+  // The shop's own row, for the location card below.
+  const { data: shopRow } = await supabase
+    .from('shops')
+    .select('latitude, longitude, service_radius_km, concurrent_jobs')
+    .eq('id', shopId)
+    .maybeSingle<{
+      latitude: number | null;
+      longitude: number | null;
+      service_radius_km: number;
+      concurrent_jobs: number;
+    }>();
 
   const [{ data: hours, error }, { data: closures }] = await Promise.all([
     supabase
@@ -49,14 +63,22 @@ export default async function HoursPage() {
           // has not got round to it.
           <p className="text-sm text-destructive">
             This shop has no opening hours set up. That should not happen — tell whoever runs
-            Nexora.
+            Jasora.
           </p>
         ) : (
           <HoursForm days={hours} />
         )}
       </div>
 
+      <CapacityCard concurrentJobs={shopRow?.concurrent_jobs ?? 1} />
+
       <ClosuresCard closures={closures ?? []} />
+
+      <ShopLocationCard
+        latitude={shopRow?.latitude ?? null}
+        longitude={shopRow?.longitude ?? null}
+        serviceRadiusKm={shopRow?.service_radius_km ?? 100}
+      />
     </div>
   );
 }

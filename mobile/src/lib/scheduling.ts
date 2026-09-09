@@ -227,3 +227,44 @@ export function openStatus(
   if (minutes >= closes) return { open: false, text: 'Closed for today' };
   return { open: true, text: `Open until ${formatClock(h.closes_at)}` };
 }
+
+/** A stretch of time a shop already has work in. */
+export interface BusyInterval {
+  starts_at: string;
+  ends_at: string;
+}
+
+/**
+ * Whether a slot is already full.
+ *
+ * The same rule create_booking enforces, run on the phone so the picker can
+ * grey a slot out rather than letting someone choose a vehicle, an address and
+ * a time before being told the bay was taken. The server stays the authority —
+ * two people tapping at the same instant can only be settled where the write
+ * happens — so this is about not wasting a customer's time, not about
+ * correctness.
+ *
+ * Overlap, not equality: booking into the middle of a sixty-hour job has to
+ * count, and comparing start times would miss it.
+ */
+export function isSlotFull(
+  slot: Date,
+  durationMinutes: number | null,
+  busy: BusyInterval[] | undefined,
+  concurrentJobs: number,
+): boolean {
+  if (!busy || busy.length === 0) return false;
+
+  const start = slot.getTime();
+  // The same floor the server applies. Without it a service with no duration
+  // would never overlap anything and capacity would quietly not apply to it.
+  const end = start + (durationMinutes ?? 60) * 60_000;
+
+  const overlapping = busy.filter((b) => {
+    const bStart = new Date(b.starts_at).getTime();
+    const bEnd = new Date(b.ends_at).getTime();
+    return bStart < end && start < bEnd;
+  }).length;
+
+  return overlapping >= Math.max(1, concurrentJobs);
+}

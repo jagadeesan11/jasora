@@ -1,21 +1,34 @@
 /**
  * Regenerates every launcher/splash asset from one source of truth:
- * mobile/assets/brand/nexora-logo-source.png — the Nexora badge artwork.
+ * mobile/assets/brand/jasora-logo-source.png — the stacked JASORA lockup.
  *
  * Run it whenever the logo changes:
  *   node scripts/generate-icons.mjs
  *
  * Needs `sharp`, which is resolved from whichever workspace already has it.
  *
+ * ---------------------------------------------------------------------------
+ * The one decision this file encodes
+ *
+ * The lockup is a pin above the word JASORA above a tagline. All three belong
+ * on the splash, where there is room to read them. Only the pin belongs on the
+ * launcher icon: at 48dp the word is about four pixels tall and the tagline is
+ * finer than a pixel, so shipping the whole lockup as the icon turns a good
+ * logo into a smudge. So the pin is lifted and set on the wordmark's own navy,
+ * and the lockup is used whole for the splash.
+ *
+ * Lifting the pin is the easy half — nothing else in the artwork is warm, so
+ * one hue ramp separates it, keeps its anti-aliased edge, and leaves the
+ * knocked-out centre transparent without any special handling. The navy drop
+ * shadow under it fails the same ramp, which is what we want: a shadow drawn
+ * for a light ground would be invisible on a dark one.
+ *
  * Store rules this encodes, so they are not rediscovered by rejection:
  *  - icon.png must be fully opaque with square corners; the stores apply their
- *    own mask, and a pre-rounded icon gets double-rounded. The source badge IS
- *    pre-rounded, so it is zoomed past its own corner radius rather than
- *    padded with a flat colour, which would band against the gradient.
- *  - The Android adaptive foreground is cropped hard. Only the central ~61% of
- *    the canvas survives a circular mask — which would eat the "NEXORA"
- *    wordmark entirely. So the foreground carries the N alone, and the
- *    wordmark lives only where the whole badge is visible (icon, splash).
+ *    own mask. It is composited on a solid ground rather than cropped out of
+ *    the artwork, whose card has rounded corners of its own.
+ *  - The adaptive foreground is cropped hard — a circular mask keeps only the
+ *    central ~61%. checkSafeZone() below fails the build if the pin overflows.
  *  - The monochrome layer must be a single flat colour on transparency;
  *    Android recolours it for themed icons and ignores whatever hue is there.
  */
@@ -43,177 +56,224 @@ if (!sharp) {
   process.exit(1);
 }
 
-const SRC = join(ROOT, 'mobile', 'assets', 'brand', 'nexora-logo-source.png');
+const SRC = join(ROOT, 'mobile', 'assets', 'brand', 'jasora-logo-source.png');
 const OUT = join(ROOT, 'mobile', 'assets', 'images');
 const ADMIN_APP = join(ROOT, 'admin', 'src', 'app');
+const ADMIN_PUBLIC = join(ROOT, 'admin', 'public');
 
 /**
- * Where things sit inside the trimmed badge, as fractions of its box. Measured
- * off the artwork rather than guessed: the N occupies x 20.7–79.3%,
- * y 15.5–66.9%; the wordmark 71.5–81.3%; its underline 85.9–86.6%.
+ * How orange a pixel is, 0..1. Red-minus-blue rather than a hue conversion
+ * because it is monotonic across the pin's whole gradient and lands on zero
+ * for every other thing in the artwork: the card ground, the navy letters, the
+ * shadow ellipse and the pin's own knocked-out centre all read cool or neutral.
+ * Used as alpha directly, so the pin keeps the edge the artwork drew.
  */
-const MARK = { left: 0.2, top: 0.148, width: 0.6, height: 0.528 };
+const orangeness = ([r, , b]) => Math.min(1, Math.max(0, (r - b - 20) / 60));
+
+/** Ink, for finding the lockup's bands: anything that is not the card ground. */
+const INK_DISTANCE = 55;
+
+/** Stay this far inside the card, clear of its rounded edge and its shadow. */
+const CARD_MARGIN = 40;
 
 /**
- * How much of a favicon the N fills. Favicons drop the wordmark entirely —
- * "NEXORA" is unreadable at 16px and only muddies the mark.
+ * How much of the icon's height the pin fills.
+ *
+ * The launcher one is not a taste decision — the mask may be a circle, and
+ * only a circle inscribed in the middle 61% of the canvas is guaranteed to
+ * survive. checkSafeZone() fails the build if this is raised too far; 0.60 is
+ * the most this pin allows, measured, and 0.62 already clips.
+ *
+ * The two land on the same number here, which is luck rather than design: a
+ * teardrop wastes most of its bounding box, so it fits a circle far better
+ * than a square mark of the same height would. They stay separate constants
+ * because a different mark would part them immediately.
  */
-const TILE_FRACTION = 0.74;
+const FOREGROUND_FRACTION = 0.6;
+const ICON_FRACTION = 0.6;
 
 /**
- * Enough zoom to push the badge's own rounded corners outside a square crop.
- * A corner of radius r is cleared by an inset of r(1 - 1/sqrt2) ~= 0.293r; at
- * r ~= 18% of the edge that is ~5.3%, so 1.15 leaves margin. Verified after
- * generation by asserting icon.png has no alpha.
- */
-const ICON_ZOOM = 1.15;
-
-/** Luminance window that separates the bright N from the dark badge ground. */
-const ALPHA_LO = 55;
-const ALPHA_HI = 125;
-
-/**
- * The monochrome layer keys on the brightest channel instead, at a hard step.
- * Luminance under-reads the ribbon's deep blue and magenta passages — they are
- * vivid but dark — so keying on luminance punched semi-transparent holes
- * through the middle of the N and Android rendered a grey, shaded smudge where
- * a themed icon wants one flat silhouette.
- */
-const MONO_KEY = 132;
-
-/**
- * Blur-then-threshold the keyed mask. This morphological smoothing is what
- * turns a key into a shape: it closes the pinholes left by the ribbon's folds
- * and shaves the stray wisps around the stroke ends. Raising it much past 4
- * starts rounding the N's corners off.
- */
-const MONO_BLUR = 3;
-
-/**
- * Encoding for the derived assets. Passing `effort` to sharp's PNG encoder
- * implicitly turns on palette quantisation — it is NOT lossless, whatever the
- * name suggests. It costs 256 colours and a faint dither visible only under
- * magnification, and takes this artwork from 1.5 MB to 240 KB a file. Worth it
- * for things rendered at 48–220px; these all ship inside every build.
+ * Encoding. Passing `effort` to sharp's PNG encoder implicitly turns on
+ * palette quantisation — it is NOT lossless, whatever the name suggests. For
+ * this artwork that is nearly free: flat navy and one orange ramp sit inside
+ * 256 colours comfortably. icon.png still keeps full colour, because it is the
+ * master the stores re-encode every launcher density from.
  */
 const PNG_DERIVED = { compressionLevel: 9, effort: 10 };
-
-/**
- * icon.png keeps full colour. It is the master the stores re-encode every
- * launcher density from, and quantising a source that everything else is
- * derived from spends the same 256 colours twice.
- */
 const PNG_MASTER = { compressionLevel: 9 };
 
-const badge = await sharp(SRC).trim({ threshold: 10 }).png().toBuffer();
-const { width: BW, height: BH } = await sharp(badge).metadata();
+// ------------------------------------------------------------------ source
 
-const px = (f, of) => Math.round(f * of);
-const markRegion = {
-  left: px(MARK.left, BW),
-  top: px(MARK.top, BH),
-  width: px(MARK.width, BW),
-  height: px(MARK.height, BH),
+const { data: PX, info: INFO } = await sharp(SRC)
+  .ensureAlpha()
+  .raw()
+  .toBuffer({ resolveWithObject: true });
+const W = INFO.width;
+const H = INFO.height;
+const at = (x, y) => {
+  const s = (y * W + x) * INFO.channels;
+  return [PX[s], PX[s + 1], PX[s + 2], PX[s + 3]];
 };
+const hex = (c) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
 
-/** The badge's own ground behind the mark, so the adaptive background layer
- *  matches the artwork instead of an unrelated brand constant. */
-async function groundColour() {
-  const { data, info } = await sharp(badge)
-    .extract(markRegion)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  let n = 0;
-  for (let i = 0; i < info.width * info.height; i += 1) {
-    const s = i * info.channels;
-    const lum = 0.2126 * data[s] + 0.7152 * data[s + 1] + 0.0722 * data[s + 2];
-    if (data[s + 3] > 200 && lum < ALPHA_LO) {
-      r += data[s];
-      g += data[s + 1];
-      b += data[s + 2];
-      n += 1;
-    }
-  }
-  const avg = (v) => Math.round(v / n);
-  return { r: avg(r), g: avg(g), b: avg(b) };
-}
-
-const GROUND = await groundColour();
-const GROUND_HEX =
-  '#' + [GROUND.r, GROUND.g, GROUND.b].map((v) => v.toString(16).padStart(2, '0')).join('');
+/** The card's flat ground, read just inside its top edge. */
+const GROUND = at(W >> 1, CARD_MARGIN + 5).slice(0, 3);
+const isInk = (p) =>
+  Math.abs(p[0] - GROUND[0]) + Math.abs(p[1] - GROUND[1]) + Math.abs(p[2] - GROUND[2]) >
+  INK_DISTANCE;
 
 /**
- * The N lifted off its ground onto transparency. Alpha comes from luminance
- * rather than a hard key, so the stroke keeps its antialiased edge; the slight
- * blue fringe that leaves is invisible because the foreground is only ever
- * composited over the matching background layer.
+ * The lockup's horizontal bands. Measured rather than hardcoded so a re-export
+ * at another size still works — hardcoded fractions are what tie a generator
+ * to one particular PNG.
+ *
+ * Rows are required to carry more than a couple of ink pixels before they
+ * count, which drops the card's own anti-aliased edge without needing to know
+ * where that edge is.
  */
-async function isolateMark({ flat = false } = {}) {
-  const { data, info } = await sharp(badge)
-    .extract(markRegion)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  const count = info.width * info.height;
-  const out = Buffer.alloc(count * 4);
-  const raw = { width: info.width, height: info.height, channels: 4 };
-
-  if (flat) {
-    const mask = Buffer.alloc(count);
-    for (let i = 0; i < count; i += 1) {
-      const s = i * info.channels;
-      mask[i] = Math.max(data[s], data[s + 1], data[s + 2]) >= MONO_KEY ? 255 : 0;
+function bands() {
+  const x0 = CARD_MARGIN;
+  const x1 = W - CARD_MARGIN;
+  const found = [];
+  let run = null;
+  for (let y = CARD_MARGIN; y < H - CARD_MARGIN; y += 1) {
+    let n = 0;
+    for (let x = x0; x < x1; x += 1) if (isInk(at(x, y))) n += 1;
+    if (n > 2 && !run) run = { top: y, bottom: y, ink: n };
+    else if (n > 2) {
+      run.bottom = y;
+      run.ink += n;
+    } else if (run) {
+      found.push(run);
+      run = null;
     }
-    const smoothed = await sharp(mask, {
-      raw: { width: info.width, height: info.height, channels: 1 },
-    })
-      .blur(MONO_BLUR)
-      .threshold(128)
-      // sharp promotes a single-channel raw buffer to sRGB on output. Without
-      // this the mask comes back three times as long, every index is off, and
-      // the silhouette fills the whole crop.
-      .toColourspace('b-w')
-      .raw()
-      .toBuffer();
+  }
+  if (run) found.push(run);
 
-    for (let i = 0; i < count; i += 1) {
-      const d = i * 4;
-      out[d] = 255;
-      out[d + 1] = 255;
-      out[d + 2] = 255;
-      out[d + 3] = smoothed[i];
+  return found.map((b) => {
+    let left = W;
+    let right = -1;
+    for (let y = b.top; y <= b.bottom; y += 1) {
+      for (let x = x0; x < x1; x += 1) {
+        if (!isInk(at(x, y))) continue;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
     }
-    return sharp(out, { raw }).png().toBuffer();
-  }
-
-  for (let i = 0; i < count; i += 1) {
-    const s = i * info.channels;
-    const r = data[s];
-    const g = data[s + 1];
-    const b = data[s + 2];
-    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    let a = (lum - ALPHA_LO) / (ALPHA_HI - ALPHA_LO);
-    a = a < 0 ? 0 : a > 1 ? 1 : a;
-    a = a * a * (3 - 2 * a); // smoothstep, so the edge rolls off
-    const d = i * 4;
-    out[d] = r;
-    out[d + 1] = g;
-    out[d + 2] = b;
-    out[d + 3] = Math.round(a * 255 * (data[s + 3] / 255));
-  }
-  return sharp(out, { raw }).png().toBuffer();
+    const width = right - left + 1;
+    const height = b.bottom - b.top + 1;
+    return { left, top: b.top, width, height, ink: b.ink, fill: b.ink / (width * height) };
+  });
 }
 
-/** Centre something on a transparent square, at a given share of the canvas. */
+/**
+ * The three bands that are the logo, as opposed to the card's own edges.
+ *
+ * Picked by density, not by ink volume or position. The card's rounded top and
+ * bottom sweep the full width of the image, so they accumulate as much ink as
+ * a line of type — enough to pass any threshold on the total, which silently
+ * shifts every band assignment by one and crops the splash to the wrong thing.
+ * What actually separates them is that an edge is a hairline through a tall
+ * box while artwork fills its box: the edges come in under 7% and nothing in
+ * the lockup is below 35%.
+ *
+ * The faint sparkle in the bottom-right corner — a generation artefact, not
+ * part of the design — falls out here too, and everything below the tagline is
+ * cropped away.
+ */
+const BANDS = bands()
+  .filter((b) => b.fill > 0.15 && b.ink > 2000)
+  .sort((a, b) => a.top - b.top);
+
+if (BANDS.length < 3) {
+  console.error(
+    `Expected pin, wordmark and tagline bands; found ${BANDS.length}.\n` +
+      'Is the source still the stacked JASORA lockup?',
+  );
+  process.exit(1);
+}
+const [PIN_BAND, WORDMARK, TAGLINE] = BANDS;
+
+// ------------------------------------------------------------------- colours
+
+/** The pin's own bounds. Tighter than its band, which includes the shadow. */
+function pinBounds() {
+  let x0 = W;
+  let y0 = H;
+  let x1 = -1;
+  let y1 = -1;
+  for (let y = 0; y < H; y += 1) {
+    for (let x = 0; x < W; x += 1) {
+      if (orangeness(at(x, y)) < 0.5) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  return { left: x0, top: y0, width: x1 - x0 + 1, height: y1 - y0 + 1 };
+}
+
+const PIN = pinBounds();
+
+/**
+ * The brand's two colours, taken off the artwork rather than declared here.
+ *
+ * The navy is the most common deep tone in the wordmark — the mode, not the
+ * mean, because a mean over a band of antialiased letterforms lands on a
+ * washed-out blend of ink and ground that appears nowhere in the logo.
+ */
+function inkColour(band) {
+  const counts = new Map();
+  for (let y = band.top; y <= band.top + band.height; y += 1) {
+    for (let x = band.left; x <= band.left + band.width; x += 1) {
+      const p = at(x, y);
+      if (Math.max(p[0], p[1], p[2]) > 80) continue;
+      const k = (p[0] << 16) | (p[1] << 8) | p[2];
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+  }
+  let best = 0;
+  let key = 0;
+  for (const [k, n] of counts) {
+    if (n > best) {
+      best = n;
+      key = k;
+    }
+  }
+  return [(key >> 16) & 255, (key >> 8) & 255, key & 255];
+}
+
+const NAVY = inkColour(WORDMARK);
+
+// ---------------------------------------------------------------- the pin
+
+/** The pin on transparency, trimmed to its own bounds, alpha from its hue. */
+function pinLayer({ flat = false } = {}) {
+  const { left, top, width, height } = PIN;
+  const out = Buffer.alloc(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const p = at(left + x, top + y);
+      const d = (y * width + x) * 4;
+      const a = Math.round(orangeness(p) * 255);
+      out[d] = flat ? 255 : p[0];
+      out[d + 1] = flat ? 255 : p[1];
+      out[d + 2] = flat ? 255 : p[2];
+      out[d + 3] = a;
+    }
+  }
+  return sharp(out, { raw: { width, height, channels: 4 } }).png().toBuffer();
+}
+
+const PIN_COLOUR = await pinLayer();
+const PIN_FLAT = await pinLayer({ flat: true });
+
+/** Centre something on a transparent square, at a given share of the height. */
 async function onCanvas(input, { size, fraction }) {
   const box = Math.round(size * fraction);
   const scaled = await sharp(input)
-    .resize(box, box, { fit: 'inside', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .resize(null, box, { fit: 'inside' })
     .png()
     .toBuffer();
   const m = await sharp(scaled).metadata();
@@ -231,67 +291,102 @@ async function onCanvas(input, { size, fraction }) {
     .toBuffer();
 }
 
-/**
- * Favicon tile: the N on flat ground. Built by compositing the isolated mark
- * rather than cropping a square out of the badge — the N is nearly as wide as
- * the space between the wordmark and the badge's rounded corners, so any square
- * crop that clears the wordmark also shaves the N's outer strokes.
- */
-async function tile(size) {
-  const mark = await onCanvas(markCutout, { size, fraction: TILE_FRACTION });
-  return sharp(mark).flatten({ background: GROUND }).png().toBuffer();
-}
-
-/** The whole badge, zoomed past its rounded corners into an opaque square. */
-async function squareIcon(size) {
-  const big = Math.round(size * ICON_ZOOM);
-  const inset = Math.round((big - size) / 2);
-  return sharp(badge)
-    .resize(big, big, { fit: 'cover', position: 'centre' })
-    .extract({ left: inset, top: inset, width: size, height: size })
-    .flatten({ background: GROUND })
+async function solid(size, colour) {
+  return sharp({
+    create: { width: size, height: size, channels: 3, background: { r: colour[0], g: colour[1], b: colour[2] } },
+  })
     .png()
     .toBuffer();
 }
 
-// Cut once. The adaptive foreground and every favicon size share one cutout,
-// so the launcher icon and the browser tab cannot drift apart.
-const markCutout = await isolateMark();
-const markSilhouette = await isolateMark({ flat: true });
+/** The master icon: the pin on the wordmark's navy, opaque, square corners. */
+async function buildIconMaster(size) {
+  return sharp(await solid(size, NAVY))
+    .composite([{ input: await onCanvas(PIN_COLOUR, { size, fraction: ICON_FRACTION }) }])
+    .removeAlpha()
+    .png()
+    .toBuffer();
+}
+
+// Built once at full size; every other size is a resize of it, so the favicon,
+// the admin tab icon and the .ico cannot drift from the launcher icon.
+const ICON_MASTER = await buildIconMaster(1024);
+
+async function squareIcon(size) {
+  if (size === 1024) return ICON_MASTER;
+  return sharp(ICON_MASTER).resize(size, size).removeAlpha().png().toBuffer();
+}
+
+/**
+ * The splash: the whole lockup, on the card's own ground.
+ *
+ * Kept opaque rather than keyed onto transparency. The letterforms are
+ * antialiased against this exact grey, and lifting them off it leaves a pale
+ * fringe on every edge; matching app.json's splash backgroundColor to the same
+ * grey makes the join seamless instead. Cropped to the tagline's baseline, so
+ * the sparkle artefact below it never ships.
+ */
+async function splash() {
+  const pad = 30;
+  const left = Math.max(0, Math.min(PIN.left, WORDMARK.left) - pad);
+  const right = Math.min(W, Math.max(PIN.left + PIN.width, WORDMARK.left + WORDMARK.width) + pad);
+  const top = Math.max(0, PIN_BAND.top - pad);
+  const bottom = Math.min(H, TAGLINE.top + TAGLINE.height + pad);
+  return sharp(SRC)
+    .extract({ left, top, width: right - left, height: bottom - top })
+    .removeAlpha()
+    .png()
+    .toBuffer();
+}
+
+// ------------------------------------------------------------------ checks
+
+/**
+ * Does the mark survive a circular launcher mask?
+ *
+ * Android guarantees only a circle inscribed in the middle 66/108 of the
+ * adaptive canvas. Rather than trust the arithmetic, mask the real foreground
+ * and count how many of its pixels fall outside that circle.
+ */
+async function checkSafeZone(foreground) {
+  const { data, info } = await sharp(foreground)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const centre = info.width / 2;
+  const radius = (info.width * 66) / 108 / 2;
+  let total = 0;
+  let clipped = 0;
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      if (data[(y * info.width + x) * info.channels + 3] < 128) continue;
+      total += 1;
+      if (Math.hypot(x - centre, y - centre) > radius) clipped += 1;
+    }
+  }
+  return { total, clipped, pct: total ? (clipped / total) * 100 : 0 };
+}
+
+// ------------------------------------------------------------------- output
 
 mkdirSync(OUT, { recursive: true });
 
-const flatGround = await sharp({
-  create: { width: 1024, height: 1024, channels: 3, background: GROUND },
-})
-  .png()
-  .toBuffer();
+const foreground = await onCanvas(PIN_COLOUR, { size: 1024, fraction: FOREGROUND_FRACTION });
 
 const assets = [
-  ['icon.png', await squareIcon(1024), 'iOS + store listing. Opaque, square corners.'],
-  ['android-icon-background.png', flatGround, `Adaptive background: flat ${GROUND_HEX}.`],
-  [
-    'android-icon-foreground.png',
-    await onCanvas(markCutout, { size: 1024, fraction: 0.54 }),
-    'Adaptive foreground: the N alone, inside the mask.',
-  ],
+  ['icon.png', ICON_MASTER, 'iOS + store listing. Opaque, square corners.'],
+  ['android-icon-background.png', await solid(1024, NAVY), `Adaptive background: flat ${hex(NAVY)}.`],
+  ['android-icon-foreground.png', foreground, 'Adaptive foreground: the pin.'],
   [
     'android-icon-monochrome.png',
-    await onCanvas(markSilhouette, { size: 1024, fraction: 0.54 }),
-    'Themed-icon layer: flat white on transparency.',
+    await onCanvas(PIN_FLAT, { size: 1024, fraction: FOREGROUND_FRACTION }),
+    'Themed-icon layer: flat white, centre still knocked out.',
   ],
-  [
-    'splash-icon.png',
-    await sharp(badge).resize(1024, 1024, { fit: 'inside' }).png().toBuffer(),
-    'Splash badge, wordmark included. Ground comes from app.json.',
-  ],
-  ['favicon.png', await tile(64), 'Web favicon: the N, legible at 64px.'],
+  ['splash-icon.png', await splash(), 'Splash: the whole lockup on its own ground.'],
+  ['favicon.png', await squareIcon(64), 'Web favicon: the pin, legible at 64px.'],
 ];
 
 for (const [file, buf, note] of assets) {
-  // Encoded once, here, rather than inside each helper: the intermediate
-  // buffers feed one another, and quantising a buffer that a later step
-  // derives from compounds the loss.
   const encoded = await sharp(buf)
     .png(file === 'icon.png' ? PNG_MASTER : PNG_DERIVED)
     .toBuffer();
@@ -308,31 +403,30 @@ for (const [file, buf, note] of assets) {
   }
 }
 
-// The old flat-colour favicon, displaced when the new logo was dropped in.
-rmSync(join(OUT, 'favicon_1.png'), { force: true });
-
 // admin panel favicon -------------------------------------------------------
 // Generated from the same artwork so the browser tab, the launcher and the
 // sidebar agree. The previous icon.svg is removed: the source is a raster now,
 // and Next.js prefers icon.svg over everything else if it is left behind.
 
 rmSync(join(ADMIN_APP, 'icon.svg'), { force: true });
-writeFileSync(join(ADMIN_APP, 'icon.png'), await sharp(await tile(256)).png(PNG_DERIVED).toBuffer());
+writeFileSync(
+  join(ADMIN_APP, 'icon.png'),
+  await sharp(await squareIcon(256)).png(PNG_DERIVED).toBuffer(),
+);
 console.log('\nadmin/src/app/icon.png          256x256  tab icon');
 
-// The sidebar lockup: the same N tile as the tab icon, so the two agree.
+// The sidebar lockup: the same tile as the tab icon, so the two agree. It
+// carries its own ground rather than sitting on transparency, because the pin
+// is orange on navy and would strand on the admin's light theme.
 //
-// The N carries its own ground rather than sitting on transparency, because it
-// is white and cyan and would vanish against the admin's light theme. It drops
-// the wordmark for the opposite reason to the favicon's — not illegibility
-// alone, but redundancy: this renders at 24–40px beside the word "Nexora".
-const ADMIN_PUBLIC = join(ROOT, 'admin', 'public');
+// Imported by name from admin/src/components/jasora-mark.tsx, so the filename
+// here and the src there move together or the sidebar shows a broken image.
 mkdirSync(ADMIN_PUBLIC, { recursive: true });
 writeFileSync(
-  join(ADMIN_PUBLIC, 'nexora-mark.png'),
-  await sharp(await tile(256)).png(PNG_DERIVED).toBuffer(),
+  join(ADMIN_PUBLIC, 'jasora-mark.png'),
+  await sharp(await squareIcon(256)).png(PNG_DERIVED).toBuffer(),
 );
-console.log('admin/public/nexora-mark.png    256x256  sidebar lockup');
+console.log('admin/public/jasora-mark.png    256x256  sidebar lockup');
 
 /**
  * Build a real multi-size .ico. Safari's SVG-favicon support is patchy and
@@ -344,11 +438,14 @@ async function buildIco(sizes) {
   // ensureAlpha + palette:false are load-bearing. Next.js parses this file at
   // build time and its ICO decoder rejects anything that is not 8-bit RGBA
   // ("The PNG is not in RGBA format!"), which takes the whole admin app down
-  // with a 500. flatten() alone yields 3-channel RGB, and sharp will happily
-  // emit a palette PNG for artwork this simple.
+  // with a 500. removeAlpha() alone yields 3-channel RGB, and sharp will
+  // happily emit a palette PNG for artwork this simple.
   const pngs = await Promise.all(
     sizes.map(async (size) =>
-      sharp(await tile(size)).ensureAlpha().png({ ...PNG_MASTER, palette: false }).toBuffer(),
+      sharp(await squareIcon(size))
+        .ensureAlpha()
+        .png({ ...PNG_MASTER, palette: false })
+        .toBuffer(),
     ),
   );
 
@@ -379,5 +476,22 @@ const ico = await buildIco([16, 32, 48]);
 writeFileSync(join(ADMIN_APP, 'favicon.ico'), ico);
 console.log(`admin/src/app/favicon.ico       16/32/48  ${ico.length} bytes`);
 
-console.log(`\nBadge ${BW}x${BH}, ground ${GROUND_HEX}.`);
-console.log('Done. Rebuild the app for these to reach a device.');
+// ------------------------------------------------------------------- report
+
+const safe = await checkSafeZone(foreground);
+console.log(
+  `\nLockup ${W}x${H} on ${hex(GROUND)}.` +
+    `\nBands: pin ${PIN_BAND.width}x${PIN_BAND.height}, wordmark ${WORDMARK.width}x${WORDMARK.height}, ` +
+    `tagline ${TAGLINE.width}x${TAGLINE.height}.` +
+    `\nPin ${PIN.width}x${PIN.height} at (${PIN.left},${PIN.top}). Navy ${hex(NAVY)}.` +
+    `\nSafe zone: ${safe.pct.toFixed(2)}% of the foreground falls outside the guaranteed circle.` +
+    `\n\napp.json should carry splash backgroundColor ${hex(GROUND)} and adaptiveIcon ${hex(NAVY)}.`,
+);
+if (safe.pct > 0.05) {
+  console.error(
+    `  !! The launcher's circular mask would clip the pin. Lower FOREGROUND_FRACTION\n` +
+      `     (currently ${FOREGROUND_FRACTION}) until this is 0.`,
+  );
+  process.exitCode = 1;
+}
+console.log('\nDone. Rebuild the app for these to reach a device.');

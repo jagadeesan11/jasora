@@ -14,7 +14,7 @@ SplashScreen.preventAutoHideAsync();
  * React Navigation paints the headers and tab bar from its own theme, which
  * otherwise stays neutral black/grey while the app ground is green-black —
  * making the chrome look like it belongs to a different app. Feeding it the
- * Nexora tokens keeps the whole surface consistent.
+ * Jasora tokens keeps the whole surface consistent.
  */
 function navigationTheme(scheme: 'light' | 'dark'): Theme {
   const base = scheme === 'dark' ? DarkTheme : DefaultTheme;

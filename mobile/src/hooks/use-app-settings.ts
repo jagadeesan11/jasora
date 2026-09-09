@@ -35,7 +35,7 @@ export interface AppSettings {
 /** Used until the network answers, and if it never does. The app must still
  *  render a shop name and a way to reach support offline. */
 export const FALLBACK_SETTINGS: AppSettings = {
-  shop_name: 'Nexora',
+  shop_name: 'Jasora',
   shop_logo_url: null,
   support_email: SUPPORT_EMAIL,
   support_phone: SUPPORT_PHONE,
@@ -52,10 +52,11 @@ export const FALLBACK_SETTINGS: AppSettings = {
 
 const SHOP_FIELDS =
   'id, slug, name, logo_url, support_email, support_phone, address_line, city, postal_code, ' +
-  'cod_enabled, online_payment_enabled, privacy_url, terms_url, instagram_url, whatsapp_number, is_active';
+  'cod_enabled, online_payment_enabled, privacy_url, terms_url, instagram_url, whatsapp_number, is_active, ' +
+  'latitude, longitude, service_radius_km, concurrent_jobs';
 
 // Shared across every hook instance — see lib/shop-choice.
-const useChosenShopId = createShopChoice('nexora.shop_id');
+const useChosenShopId = createShopChoice('jasora.shop_id');
 
 function toSettings(shop: ShopRow): AppSettings {
   return {
@@ -125,7 +126,7 @@ export function useShop() {
  * The platform's own legal documents.
  *
  * The privacy policy describes who holds personal data and what they do with
- * it, and that is Nexora rather than any one shop: every shop's customers live
+ * it, and that is Jasora rather than any one shop: every shop's customers live
  * in one database the platform controls and answers for. So it is one document,
  * and a shop's own column is an override for the rare shop that needs its own.
  *
@@ -153,9 +154,15 @@ export function usePlatformSettings() {
  * Shop details the admin configures at runtime, in the shape screens expect.
  * Readable without a session, so the sign-in screen can use it too.
  */
-export function useAppSettings() {
-  const { shop, ...rest } = useShop();
+export function useAppSettings(forShopId?: string | null) {
+  const { shop: current, ...rest } = useShop();
   const { data: platform } = usePlatformSettings();
+  // Same query key as useShop uses, so naming a shop costs no extra fetch.
+  const { data: shops } = useShops();
+
+  // A named shop wins over the selected one. The shop page and everything on it
+  // is reachable by deep link, where "whichever shop was selected" is a guess.
+  const shop = forShopId ? (shops?.find((s) => s.id === forShopId) ?? null) : current;
 
   const settings = shop ? toSettings(shop) : FALLBACK_SETTINGS;
 

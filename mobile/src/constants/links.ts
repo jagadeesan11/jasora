@@ -11,7 +11,7 @@
  * see useAppSettings(). The screens still show an honest "not published yet"
  * state while those are null, rather than inventing legal copy.
  */
-export const SUPPORT_EMAIL = 'support@nexora.app';
+export const SUPPORT_EMAIL = 'support@jasora.app';
 export const SUPPORT_PHONE = '+91 00000 00000';
 
 export const FAQ: { question: string; answer: string }[] = [

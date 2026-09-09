@@ -18,11 +18,17 @@ import { openStatus, weekSchedule } from '@/lib/scheduling';
  * Collapsed to today by default. The full week is a reference people want
  * occasionally and a wall of text they scroll past the rest of the time.
  */
-export function ShopHoursCard() {
+/**
+ * Takes the shop as an optional prop, defaulting to the one the app is in.
+ * The shop page passes its own: it is reachable by deep link, and hours for
+ * whichever shop happened to be selected would be the wrong shop's.
+ */
+export function ShopHoursCard({ shopId: forShopId }: { shopId?: string | null } = {}) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
 
-  const { shopId } = useAppSettings();
+  const { shopId: currentShopId } = useAppSettings();
+  const shopId = forShopId ?? currentShopId;
   const { data: hours } = useBusinessHours(shopId);
   const { data: closures } = useShopClosures(shopId);
 
