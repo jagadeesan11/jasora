@@ -7,14 +7,12 @@ import { ThemedView } from '@/components/themed-view';
 import { Button } from '@/components/ui/button';
 import { ListGroup, ListRow } from '@/components/ui/list-row';
 import { Radius, Spacing } from '@/constants/theme';
-import { useAppSettings } from '@/hooks/use-app-settings';
 import { useAuth } from '@/hooks/use-auth';
 import { useBookingCount, useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const { settings, options } = useAppSettings();
   const { user, signOut } = useAuth();
   const { data: profile } = useProfile(user?.id);
   const { data: bookingCount } = useBookingCount(user?.id);
@@ -74,18 +72,12 @@ export default function ProfileScreen() {
           </ListGroup>
 
           <ListGroup title="Settings">
-            {/* Only when there is somewhere else to go. With one shop the row
-                would be a control that does nothing. */}
-            {options.length > 1 ? (
-              <ListRow
-                first
-                label="Shop"
-                value={settings.shop_name}
-                onPress={() => router.push('/settings/shop')}
-              />
-            ) : null}
+            {/* No "Shop" row. Home lists every shop and opening one is how you
+                get to it, so a second control that changed the same thing from
+                somewhere else was a way to end up in a shop without having gone
+                there. */}
             <ListRow
-              first={options.length <= 1}
+              first
               label="Account settings"
               onPress={() => router.push('/settings/account')}
             />
@@ -106,8 +98,11 @@ export default function ProfileScreen() {
 
           <Button label="Sign out" variant="danger" onPress={() => signOut()} style={styles.signOut} />
 
+          {/* The app's name, not a shop's. This used to read the selected shop,
+              which put "MOTO CERAMIC v1.0.0" under a profile belonging to
+              neither shop — and the version is the platform's in any case. */}
           <ThemedText type="caption" themeColor="textMuted" style={styles.version}>
-            {settings.shop_name} v1.0.0
+            Jasora v1.0.0
           </ThemedText>
         </ScrollView>
       </SafeAreaView>

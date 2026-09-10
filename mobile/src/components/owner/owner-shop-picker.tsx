@@ -70,7 +70,7 @@ export function OwnerShopPicker({ onChosen }: { onChosen?: () => void } = {}) {
             <Card style={styles.empty}>
               <ThemedText type="bodyMedium">You are not on a shop&rsquo;s staff yet</ThemedText>
               <ThemedText themeColor="textMuted">
-                Ask whoever runs Nexora to add you to a shop, then sign in again.
+                Ask whoever runs Jasora to add you to a shop, then sign in again.
               </ThemedText>
             </Card>
           ) : null}

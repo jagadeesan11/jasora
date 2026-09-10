@@ -17,6 +17,10 @@ function shop(over: Partial<ShopRow> & { id: string }): ShopRow {
     instagram_url: null,
     whatsapp_number: null,
     is_active: true,
+    latitude: null,
+    longitude: null,
+    service_radius_km: 100,
+    concurrent_jobs: 1,
     ...over,
   };
 }

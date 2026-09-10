@@ -23,7 +23,11 @@ type Action = {
 const TILE_WIDTH = 84;
 
 /**
- * The taps a customer reaches for most, above the catalogue.
+ * How to reach a shop: WhatsApp, phone, Instagram, and the help centre.
+ *
+ * Lives on the shop page rather than home. These are a shop's own channels —
+ * on a home screen listing every shop they belonged to none of them, and
+ * quietly showed whichever shop happened to be selected.
  *
  * Which contact channels appear depends on what the shop has configured, so
  * the row never offers a WhatsApp — or an Instagram — that goes nowhere.
@@ -33,9 +37,9 @@ const TILE_WIDTH = 84;
  * all configured at once. Scrolling horizontally instead means adding a
  * channel is never a trade against another one.
  */
-export function QuickActions() {
+export function QuickActions({ shopId }: { shopId?: string | null } = {}) {
   const theme = useTheme();
-  const { settings } = useAppSettings();
+  const { settings } = useAppSettings(shopId);
 
   const whatsapp = whatsappUrl(settings.whatsapp_number);
   const instagram = instagramHandle(settings.instagram_url);

@@ -29,6 +29,11 @@ export function PlatformLegalCard({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  // Controlled for the same reason as the location card: these arrive from the
+  // server after mount, and an uncontrolled default that changes afterwards is
+  // ignored — the field would go on showing the previous URL.
+  const [privacy, setPrivacy] = useState(privacyUrl ?? '');
+  const [terms, setTerms] = useState(termsUrl ?? '');
 
   return (
     <form
@@ -56,7 +61,13 @@ export function PlatformLegalCard({
         <Label htmlFor="privacy_url" className="mb-1.5">
           Privacy policy URL
         </Label>
-        <Input id="privacy_url" name="privacy_url" defaultValue={privacyUrl ?? ''} type="url" />
+        <Input
+          id="privacy_url"
+          name="privacy_url"
+          type="url"
+          value={privacy}
+          onChange={(e) => setPrivacy(e.target.value)}
+        />
         <p className="mt-1 text-xs text-muted-foreground">
           The same URL your app store listing uses. It has to be reachable without signing in.
         </p>
@@ -66,7 +77,13 @@ export function PlatformLegalCard({
         <Label htmlFor="terms_url" className="mb-1.5">
           Terms of use URL
         </Label>
-        <Input id="terms_url" name="terms_url" defaultValue={termsUrl ?? ''} type="url" />
+        <Input
+          id="terms_url"
+          name="terms_url"
+          type="url"
+          value={terms}
+          onChange={(e) => setTerms(e.target.value)}
+        />
         <p className="mt-1 text-xs text-muted-foreground">
           Terms for using the app itself. Cancellation, refunds and warranty are a matter between
           the customer and the shop, and belong in that shop&rsquo;s own terms.

@@ -3,6 +3,8 @@
 import { revalidatePath } from 'next/cache';
 
 import { getCurrentRole } from '@/lib/auth';
+import { parseCoordinates } from '@/lib/coordinates';
+import { getShopContext } from '@/lib/shop';
 import { createClient } from '@/lib/supabase/server';
 
 export interface ActionResult {
@@ -190,6 +192,53 @@ export async function savePlatformLegal(fd: FormData): Promise<ActionResult> {
   // PostgREST answers 204 for a write that matched nothing, which reads as
   // success; the returned rows are what prove it landed.
   if (!data || data.length === 0) return { ok: false, message: 'Could not save those.' };
+
+  revalidatePath('/shops');
+  return { ok: true };
+}
+
+/**
+ * Where the shop is, and how far it will travel.
+ *
+ * Not platform-admin only: a shop's own location and range are its business,
+ * and the RLS policy on shops already lets a member update their own row. The
+ * scope check is getShopContext(), which is what decides whose shop this is.
+ */
+export async function saveShopLocation(fd: FormData): Promise<ActionResult> {
+  const { shop } = await getShopContext();
+  if (!shop) return { ok: false, message: 'You do not have a shop to edit.' };
+
+  const radiusRaw = String(fd.get('service_radius_km') ?? '').trim();
+  const radius = Number(radiusRaw);
+  if (!Number.isInteger(radius) || radius < 1 || radius > 1000) {
+    return { ok: false, message: 'The service range has to be a whole number of kilometres, 1 to 1000.' };
+  }
+
+  const pasted = String(fd.get('location') ?? '').trim();
+
+  // Clearing the box clears the pin. A shop with no location is still listed,
+  // just not distance-filtered, so this is a real thing to want rather than an
+  // accident to guard against.
+  let latitude: number | null = null;
+  let longitude: number | null = null;
+  if (pasted) {
+    const parsed = parseCoordinates(pasted);
+    if (!parsed.ok) return { ok: false, message: parsed.reason };
+    latitude = parsed.value.latitude;
+    longitude = parsed.value.longitude;
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('shops')
+    .update({ latitude, longitude, service_radius_km: radius })
+    .eq('id', shop.id)
+    .select('id');
+
+  if (error) return { ok: false, message: error.message };
+  // PostGREST answers 204 for a write that matched nothing, which reads as
+  // success; the returned rows are what prove it landed.
+  if (!data || data.length === 0) return { ok: false, message: 'That could not be saved.' };
 
   revalidatePath('/shops');
   return { ok: true };

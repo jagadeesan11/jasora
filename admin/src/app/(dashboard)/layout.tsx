@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 import { MobileNav } from '@/components/mobile-nav';
-import { NexoraMark } from '@/components/nexora-mark';
+import { JasoraMark } from '@/components/jasora-mark';
 import { ShopSwitcher } from '@/components/shop-switcher';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { SignOutButton } from '@/components/sign-out-button';
@@ -30,9 +30,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           sidebar on a 375px phone leaves 135px for the page itself. */}
       <aside className="hidden border-r border-sidebar-border bg-sidebar md:sticky md:top-0 md:flex md:h-dvh md:w-60 md:shrink-0 md:flex-col">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <NexoraMark className="size-7 text-foreground" />
+          <JasoraMark className="size-7 text-foreground" />
           <div className="leading-tight">
-            <div className="text-sm font-semibold tracking-tight">Nexora</div>
+            <div className="text-sm font-semibold tracking-tight">Jasora</div>
             <div className="text-[11px] text-muted-foreground">Admin</div>
           </div>
         </div>

@@ -22,13 +22,14 @@ import { supabase } from '@/lib/supabase';
 
 // Its own store, separate from the customer's: the shop someone books with
 // says nothing about the shop they manage.
-const useOwnerChosenShopId = createShopChoice('nexora.owner_shop_id');
+const useOwnerChosenShopId = createShopChoice('jasora.owner_shop_id');
 
 // One list, used by both branches, so a column added for one cannot go missing
 // from the other.
 const SHOP_COLUMNS =
   'id, slug, name, logo_url, support_email, support_phone, address_line, city, postal_code, ' +
-  'cod_enabled, online_payment_enabled, privacy_url, terms_url, instagram_url, whatsapp_number, is_active';
+  'cod_enabled, online_payment_enabled, privacy_url, terms_url, instagram_url, whatsapp_number, is_active, ' +
+  'latitude, longitude, service_radius_km, concurrent_jobs';
 
 interface MembershipRow {
   role: string;

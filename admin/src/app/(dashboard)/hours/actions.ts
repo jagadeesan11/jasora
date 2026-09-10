@@ -79,6 +79,37 @@ export async function saveHours(days: DayInput[]): Promise<ActionResult> {
   return { ok: true };
 }
 
+/**
+ * How many jobs this shop can have in hand at once.
+ *
+ * Bookings that would exceed it are refused by create_booking, so this number
+ * is the only thing standing between a one-bay shop and four cars turning up on
+ * the same morning.
+ */
+export async function saveCapacity(concurrentJobs: number): Promise<ActionResult> {
+  const { shop } = await getShopContext();
+  if (!shop) return { ok: false, message: 'You do not have a shop to edit.' };
+
+  if (!Number.isInteger(concurrentJobs) || concurrentJobs < 1 || concurrentJobs > 50) {
+    return { ok: false, message: 'That has to be a whole number between 1 and 50.' };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('shops')
+    .update({ concurrent_jobs: concurrentJobs })
+    .eq('id', shop.id)
+    .select('id');
+
+  if (error) return { ok: false, message: error.message };
+  // PostgREST answers 204 for a write that matched nothing, which reads as
+  // success; the returned rows are what prove it landed.
+  if (!data || data.length === 0) return { ok: false, message: 'That could not be saved.' };
+
+  revalidatePath('/hours');
+  return { ok: true };
+}
+
 export async function addClosure(fd: FormData): Promise<ActionResult> {
   const { shop } = await getShopContext();
   if (!shop) return { ok: false, message: 'You do not have a shop to edit.' };

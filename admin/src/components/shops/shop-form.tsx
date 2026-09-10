@@ -19,7 +19,7 @@ function slugify(value: string): string {
 
 /**
  * Suggests an invoice prefix from the name: initials first, then the leading
- * letters, so "Moto Ceramic" gives MC and "Nexora" gives NEXORA.
+ * letters, so "Moto Ceramic" gives MC and "Jasora" gives JASORA.
  *
  * A suggestion rather than a rule, because this ends up on every printed bill
  * and the person naming it may well want something else. It exists so nobody

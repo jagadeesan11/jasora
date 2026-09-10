@@ -32,7 +32,7 @@ export default async function ShopsPage() {
     <div>
       <PageHeader
         title="Shops"
-        description="Every business running on Nexora. Each one has its own catalogue, staff, hours and invoice numbers."
+        description="Every business running on Jasora. Each one has its own catalogue, staff, hours and invoice numbers."
         action={
           <Link href="/shops/new" className={buttonVariants()}>
             New shop

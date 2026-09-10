@@ -1,4 +1,5 @@
 import {
+  isSlotFull,
   formatClock,
   getBookableDays,
   getTimeSlotsForDay,
@@ -159,5 +160,48 @@ describe('openStatus', () => {
   it('is open exactly at opening time and shut exactly at closing time', () => {
     expect(openStatus(WEEK, [], new Date('2026-08-31T09:00:00')).open).toBe(true);
     expect(openStatus(WEEK, [], new Date('2026-08-31T19:00:00')).open).toBe(false);
+  });
+});
+
+/**
+ * The picker's half of capacity. The server refuses an overbooked slot either
+ * way; this is what stops a customer finding that out at the end of the form.
+ */
+describe('isSlotFull', () => {
+  // A sixty-hour job, which is what a paint protection booking actually is.
+  const busy = [{ starts_at: '2026-08-31T04:30:00.000Z', ends_at: '2026-09-02T16:30:00.000Z' }];
+
+  it('is not full when the shop has nothing on', () => {
+    expect(isSlotFull(new Date('2026-08-31T05:00:00.000Z'), 60, [], 1)).toBe(false);
+    expect(isSlotFull(new Date('2026-08-31T05:00:00.000Z'), 60, undefined, 1)).toBe(false);
+  });
+
+  it('is full in the middle of a long job, not only at its start', () => {
+    // A day into a job that runs for two and a half.
+    expect(isSlotFull(new Date('2026-09-01T05:00:00.000Z'), 60, busy, 1)).toBe(true);
+  });
+
+  it('is free once the job has ended', () => {
+    expect(isSlotFull(new Date('2026-09-02T17:00:00.000Z'), 60, busy, 1)).toBe(false);
+  });
+
+  it('is free when a long booking starts after this slot ends', () => {
+    expect(isSlotFull(new Date('2026-08-31T03:00:00.000Z'), 60, busy, 1)).toBe(false);
+  });
+
+  it('counts the job being booked, not just the one already there', () => {
+    // A sixty-hour job starting the day before overlaps a booking that has not
+    // begun yet, because the new job runs into it.
+    expect(isSlotFull(new Date('2026-08-30T04:30:00.000Z'), 3600, busy, 1)).toBe(true);
+  });
+
+  it('lets a second job in when the shop has two bays', () => {
+    expect(isSlotFull(new Date('2026-09-01T05:00:00.000Z'), 60, busy, 2)).toBe(false);
+  });
+
+  it('treats a service with no duration as an hour rather than as nothing', () => {
+    // Ending inside the busy interval: with a zero-length job this would read
+    // as free and capacity would not apply.
+    expect(isSlotFull(new Date('2026-08-31T04:00:00.000Z'), null, busy, 1)).toBe(true);
   });
 });

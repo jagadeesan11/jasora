@@ -25,6 +25,13 @@ export interface ShopRow {
   instagram_url: string | null;
   whatsapp_number: string | null;
   is_active: boolean;
+  /** Null until the shop drops a pin. It is still listed either way. */
+  latitude: number | null;
+  longitude: number | null;
+  /** How far this shop will travel, set by the shop itself. */
+  service_radius_km: number;
+  /** How many jobs it can have in hand at once — bays, ramps, however it counts. */
+  concurrent_jobs: number;
 }
 
 export interface ShopChoice {
