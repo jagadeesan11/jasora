@@ -35,13 +35,65 @@ export function todaysBookings<T extends BoardBooking>(bookings: T[] | undefined
 }
 
 /**
+ * Everything the shop still owes work on, whenever it was scheduled.
+ *
+ * The board's queues are built from this rather than from today's bookings.
+ * They used to be today-only, which meant a job nobody got to yesterday
+ * disappeared overnight: still unassigned, still in progress, still owed to a
+ * customer, and no longer anywhere in the app. A queue that empties itself by
+ * the passage of time is not a queue.
+ *
+ * The day statistics stay on today, because "booked today" means today.
+ */
+export function openBookings<T extends BoardBooking>(bookings: T[] | undefined): T[] {
+  return (bookings ?? []).filter((b) => OPEN_STATUSES.includes(b.status));
+}
+
+/** Before today, and therefore late however the shop feels about it. */
+export function isOverdue(iso: string, now: Date = new Date()): boolean {
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  return new Date(iso) < startOfToday;
+}
+
+/**
+ * When a job is, written for someone reading a list that is no longer all one
+ * day. The time alone said "5:00 pm" on a job from last Tuesday.
+ */
+export function whenLabel(iso: string, now: Date = new Date()): string {
+  const at = new Date(iso);
+  const time = at.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+
+  if (isSameDay(iso, now)) return time;
+
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (isSameDay(iso, yesterday)) return `Yesterday, ${time}`;
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (isSameDay(iso, tomorrow)) return `Tomorrow, ${time}`;
+
+  // Weekday and date formatted separately: asking for both at once puts a comma
+  // after the weekday, so the line came out as "Sun, 23 Aug, 10:00 am".
+  const weekday = at.toLocaleDateString('en-IN', { weekday: 'short' });
+  const date = at.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  return `${weekday} ${date}, ${time}`;
+}
+
+/**
  * Jobs confirmed but with nobody on them — the queue the Inbox exists to empty.
  *
  * `pending_payment` is deliberately excluded: assigning someone to a job the
  * customer has not paid for commits a bay to money that may never arrive.
  */
 export function needsAssignment<T extends BoardBooking>(bookings: T[]): T[] {
-  return bookings.filter((b) => b.status === 'confirmed' && !b.technician_id);
+  return bookings
+    .filter((b) => b.status === 'confirmed' && !b.technician_id)
+    // Oldest first. Now that the queue spans days, the job that has been
+    // waiting longest is the one to deal with, and it is the one a
+    // newest-first list would bury.
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
 }
 
 /** Jobs with someone on them, in the order they are happening. */

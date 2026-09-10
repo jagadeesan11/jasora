@@ -14,7 +14,7 @@ import { GeistSans } from 'geist/font/sans';
 import { ThemeProvider } from '@/components/theme-provider';
 
 export const metadata: Metadata = {
-  title: 'Nexora Admin',
+  title: 'Jasora Admin',
   description: 'Admin panel for managing categories, services, bookings, and technicians.',
 };
 

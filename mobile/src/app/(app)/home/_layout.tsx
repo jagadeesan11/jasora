@@ -10,6 +10,7 @@ export default function HomeStackLayout() {
       {/* Titles are set by the screens themselves, from the category and
           service they loaded — 'Services' and 'Service' told the customer
           nothing about where they were. */}
+      <Stack.Screen name="shop/[shopId]" options={{ title: 'Shop' }} />
       <Stack.Screen name="[categoryId]" />
       <Stack.Screen name="service/[serviceId]" />
       <Stack.Screen name="booking/asset" options={{ title: 'Job details' }} />

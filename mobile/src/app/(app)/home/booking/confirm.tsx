@@ -14,11 +14,13 @@ import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useCreateBooking, useCustomerAsset } from '@/hooks/use-booking';
 import { useBusinessHours, useShopClosures } from '@/hooks/use-hours';
+import { useAppSettings, useShops } from '@/hooks/use-app-settings';
 import { useServiceDetail } from '@/hooks/use-catalog';
 import type { PromoValidation } from '@/hooks/use-promo';
 import { useTheme } from '@/hooks/use-theme';
 import { calculatePrice } from '@/lib/pricing';
-import { getBookableDays, getTimeSlotsForDay } from '@/lib/scheduling';
+import { getBookableDays, getTimeSlotsForDay, isSlotFull } from '@/lib/scheduling';
+import { useShopBusy } from '@/hooks/use-availability';
 
 const PRICE_FORMATTER = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -66,8 +68,14 @@ export default function BookingConfirmScreen() {
 
   // The shop's real hours, so the picker cannot offer a slot create_booking
   // will refuse. Both read the same rows.
-  const { data: hours } = useBusinessHours();
-  const { data: closures } = useShopClosures();
+  const { shopId } = useAppSettings();
+  const { data: hours } = useBusinessHours(shopId);
+  // What the shop already has in hand, so a full slot can be greyed out rather
+  // than refused after the customer has chosen a vehicle and an address.
+  const { data: busy } = useShopBusy(shopId);
+  const { data: shops } = useShops();
+  const capacity = shops?.find((s) => s.id === shopId)?.concurrent_jobs ?? 1;
+  const { data: closures } = useShopClosures(shopId);
 
   const days = useMemo(() => getBookableDays(new Date(), hours, closures), [hours, closures]);
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
@@ -192,17 +200,27 @@ export default function BookingConfirmScreen() {
             <View style={styles.slotGrid}>
               {slots.map((slot) => {
                 const isSelected = selectedSlot?.getTime() === slot.getTime();
+                // The server refuses these anyway; showing them as unavailable
+                // is what stops someone finding out at the end of the form.
+                const full = isSlotFull(slot, service?.duration_minutes ?? null, busy, capacity);
                 return (
                   <Pressable
                     key={slot.toISOString()}
                     onPress={() => setSelectedSlot(slot)}
+                    disabled={full}
+                    accessibilityState={{ disabled: full, selected: isSelected }}
+                    accessibilityLabel={full ? `${TIME_FORMATTER.format(slot)} — fully booked` : undefined}
                     style={[
                       styles.chip,
                       { borderColor: theme.border },
+                      full && { opacity: 0.4, backgroundColor: theme.surfaceSunk },
                       isSelected && { backgroundColor: theme.primary, borderColor: theme.primary },
                     ]}
                   >
-                    <ThemedText type="small" themeColor={isSelected ? 'primaryText' : 'text'}>
+                    <ThemedText
+                      type="small"
+                      themeColor={isSelected ? 'primaryText' : full ? 'textMuted' : 'text'}
+                    >
                       {TIME_FORMATTER.format(slot)}
                     </ThemedText>
                   </Pressable>

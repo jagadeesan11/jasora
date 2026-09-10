@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
 import { TECHNICIAN_FIELDS, type OwnerTechnician } from '@/hooks/use-owner';
+import { useMyShopId } from '@/hooks/use-my-shop';
 
 /**
  * The whole team, including anyone stood down.
@@ -11,13 +12,20 @@ import { TECHNICIAN_FIELDS, type OwnerTechnician } from '@/hooks/use-owner';
  * inactive ones too — otherwise they are unreachable once stood down.
  */
 export function useTeam() {
+  // Scoped to the shop being managed. The read policy on technicians is
+  // deliberately permissive — a catalogue is public — so this filter, not RLS,
+  // is what keeps another shop's rows out of this screen.
+  const shopId = useMyShopId();
+
   return useQuery({
-    queryKey: ['owner', 'team'],
+    queryKey: ['owner', 'team', shopId],
+    enabled: Boolean(shopId),
     staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('technicians')
         .select(TECHNICIAN_FIELDS)
+        .eq('shop_id', shopId!)
         .order('status')
         .order('name')
         .returns<OwnerTechnician[]>();
@@ -30,9 +38,11 @@ export function useTeam() {
 
 export function useSaveTechnician() {
   const queryClient = useQueryClient();
+  const shopId = useMyShopId();
 
   return useMutation({
     mutationFn: async (input: { id?: string | null; name: string; phone: string }) => {
+      if (!shopId) throw new Error('No shop selected.');
       const row = {
         name: input.name.trim(),
         phone: input.phone.trim() || null,
@@ -40,7 +50,10 @@ export function useSaveTechnician() {
 
       const query = input.id
         ? supabase.from('technicians').update(row).eq('id', input.id).select('id')
-        : supabase.from('technicians').insert(row).select('id');
+        : // shop_id is NOT NULL with nothing to derive it from, so it is sent on
+          // insert. It is deliberately absent from the update: a technician does
+          // not move between shops by being renamed.
+          supabase.from('technicians').insert({ ...row, shop_id: shopId }).select('id');
 
       const { data, error } = await query;
 

@@ -3,7 +3,7 @@
 import { Menu, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
-import { NexoraMark } from '@/components/nexora-mark';
+import { JasoraMark } from '@/components/jasora-mark';
 import { SidebarNav } from '@/components/sidebar-nav';
 import { SignOutButton } from '@/components/sign-out-button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -17,7 +17,17 @@ import { ThemeToggle } from '@/components/theme-toggle';
  * theme toggle and sign-out that otherwise live in the sidebar footer — so
  * nothing reachable on desktop is missing on a phone.
  */
-export function MobileNav({ email, role }: { email?: string; role?: string | null }) {
+export function MobileNav({
+  email,
+  role,
+  shopName,
+}: {
+  email?: string;
+  role?: string | null;
+  // Named in the bar because the sidebar that carries it on desktop is behind
+  // a menu button here, and every list on the screen below shows one shop.
+  shopName?: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -57,9 +67,17 @@ export function MobileNav({ email, role }: { email?: string; role?: string | nul
         </button>
 
         <div className="flex min-w-0 items-center gap-2">
-          <NexoraMark className="size-6 shrink-0 text-foreground" />
-          <span className="truncate text-sm font-semibold tracking-tight">Nexora</span>
-          <span className="shrink-0 text-[11px] text-muted-foreground">Admin</span>
+          <JasoraMark className="size-6 shrink-0 text-foreground" />
+          {shopName ? (
+            <span className="truncate text-sm font-semibold tracking-tight" title={shopName}>
+              {shopName}
+            </span>
+          ) : (
+            <>
+              <span className="truncate text-sm font-semibold tracking-tight">Jasora</span>
+              <span className="shrink-0 text-[11px] text-muted-foreground">Admin</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -83,9 +101,9 @@ export function MobileNav({ email, role }: { email?: string; role?: string | nul
           >
             <div className="flex items-center justify-between px-5 py-4">
               <div className="flex items-center gap-2.5">
-                <NexoraMark className="size-7 text-foreground" />
+                <JasoraMark className="size-7 text-foreground" />
                 <div className="leading-tight">
-                  <div className="text-sm font-semibold tracking-tight">Nexora</div>
+                  <div className="text-sm font-semibold tracking-tight">Jasora</div>
                   <div className="text-[11px] text-muted-foreground">Admin</div>
                 </div>
               </div>

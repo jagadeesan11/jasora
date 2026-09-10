@@ -3,6 +3,21 @@ export const SLOT_MINUTES = 30;
 /** Fallback used only until the shop's real hours arrive from the database. */
 export const DEFAULT_HOURS = { opensAt: '09:00', closesAt: '18:00' } as const;
 
+/**
+ * The span of the day the picker offers, for every shop.
+ *
+ * Deliberately not the shop's opening hours. Those say when the shop is
+ * staffed — the app shows them on the shop card so a customer knows when to
+ * turn up — and they no longer decide what may be booked: a request outside
+ * them is one the shop accepts, moves or declines when it confirms the job.
+ *
+ * A window is still needed, because a picker has to offer something and
+ * forty-eight slots from midnight is not a usable list. This one is wide
+ * enough to cover an early drop-off and a late collection, and it is a
+ * property of the product rather than of any shop.
+ */
+export const BOOKING_WINDOW = { opensAt: '07:00', closesAt: '21:00' } as const;
+
 export interface BusinessHours {
   /** 0 = Sunday, matching JavaScript's getDay() and Postgres's extract(dow). */
   weekday: number;
@@ -75,38 +90,38 @@ export function getBookableDays(
       return { date, label, open: false, reason: 'Closed' };
     }
 
-    // Before the hours load, days are assumed open rather than shown as shut —
-    // a picker that flashes "closed" for every day while loading is worse than
-    // one that briefly offers a slot the server would refuse.
-    const h = hoursFor(date, hours);
-    if (hours && hours.length > 0 && h && !h.is_open) {
-      return { date, label, open: false, reason: 'Closed' };
-    }
-
+    // A day the shop does not usually work is still bookable. The weekly
+    // pattern describes when it is staffed, not what it will accept, and the
+    // shop confirms every booking by hand anyway. Only a blocked date above
+    // takes a day out.
     return { date, label, open: true, reason: null };
   });
 }
 
 /**
- * Bookable slots for a day, inside the shop's hours for that weekday.
+ * Bookable slots for a day.
  *
- * Mirrors private.is_open_at on the server: a slot must start inside the
- * window, and past slots are dropped. Where the two could disagree the server
- * wins, and create_booking will say so.
+ * The span is BOOKING_WINDOW, the same for every shop, not the shop's opening
+ * hours — those are shown elsewhere as information and no longer decide what
+ * can be requested. The server agrees: create_booking refuses a blocked date
+ * and nothing else about the clock.
+ *
+ * `hours` is still accepted so the signature and every call site are unchanged,
+ * and so this can go back to consulting them if that turns out to be wanted.
+ * Past slots are still dropped — nobody can book backwards.
  */
 export function getTimeSlotsForDay(
   day: Date,
   now: Date = new Date(),
-  hours?: BusinessHours[],
+  _hours?: BusinessHours[],
   closures?: ShopClosure[],
 ): Date[] {
+  // A blocked date is the shop naming a day it will not work, which is a
+  // different thing from the hours it usually keeps.
   if (isClosedOn(day, closures)) return [];
 
-  const h = hoursFor(day, hours);
-  if (hours && hours.length > 0 && h && !h.is_open) return [];
-
-  const opens = minutesOf(h?.opens_at ?? DEFAULT_HOURS.opensAt);
-  const closes = minutesOf(h?.closes_at ?? DEFAULT_HOURS.closesAt);
+  const opens = minutesOf(BOOKING_WINDOW.opensAt);
+  const closes = minutesOf(BOOKING_WINDOW.closesAt);
 
   const slots: Date[] = [];
   for (let m = opens; m < closes; m += SLOT_MINUTES) {
@@ -211,4 +226,45 @@ export function openStatus(
   if (minutes < opens) return { open: false, text: `Opens at ${formatClock(h.opens_at)}` };
   if (minutes >= closes) return { open: false, text: 'Closed for today' };
   return { open: true, text: `Open until ${formatClock(h.closes_at)}` };
+}
+
+/** A stretch of time a shop already has work in. */
+export interface BusyInterval {
+  starts_at: string;
+  ends_at: string;
+}
+
+/**
+ * Whether a slot is already full.
+ *
+ * The same rule create_booking enforces, run on the phone so the picker can
+ * grey a slot out rather than letting someone choose a vehicle, an address and
+ * a time before being told the bay was taken. The server stays the authority —
+ * two people tapping at the same instant can only be settled where the write
+ * happens — so this is about not wasting a customer's time, not about
+ * correctness.
+ *
+ * Overlap, not equality: booking into the middle of a sixty-hour job has to
+ * count, and comparing start times would miss it.
+ */
+export function isSlotFull(
+  slot: Date,
+  durationMinutes: number | null,
+  busy: BusyInterval[] | undefined,
+  concurrentJobs: number,
+): boolean {
+  if (!busy || busy.length === 0) return false;
+
+  const start = slot.getTime();
+  // The same floor the server applies. Without it a service with no duration
+  // would never overlap anything and capacity would quietly not apply to it.
+  const end = start + (durationMinutes ?? 60) * 60_000;
+
+  const overlapping = busy.filter((b) => {
+    const bStart = new Date(b.starts_at).getTime();
+    const bEnd = new Date(b.ends_at).getTime();
+    return bStart < end && start < bEnd;
+  }).length;
+
+  return overlapping >= Math.max(1, concurrentJobs);
 }

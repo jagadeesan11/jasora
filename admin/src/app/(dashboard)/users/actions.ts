@@ -19,8 +19,7 @@ export interface ActionResult {
  * action re-checks the caller here rather than trusting that they got as far
  * as rendering the page.
  *
- * `admin` only, deliberately narrower than the database's `is_admin()`, which
- * also counts shop owners. These actions create accounts, delete them and
+ * Platform `admin` only. These actions create accounts, delete them and
  * reset passwords using the service key — so accepting a shop owner here would
  * have let one mint an admin account or take over an existing one, whatever
  * RLS says. Managing who has an account is running the business, not running
@@ -114,7 +113,7 @@ export async function updateUser(formData: FormData): Promise<ActionResult> {
   }
 
   // Written as the caller, NOT with the service key. prevent_self_role_escalation
-  // permits a role change only when is_admin() is true, and is_admin() reads
+  // permits a role change only when is_platform_admin() is true, and that reads
   // auth.uid() — which the service role does not have. So the service key,
   // despite bypassing RLS, is the one identity that CANNOT change a role:
   // it fails with "Only admins can change a profile's role".

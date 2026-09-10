@@ -7,10 +7,16 @@ import { ThemedView } from '@/components/themed-view';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { EmptyState, ErrorState, SkeletonList } from '@/components/ui/feedback';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
 import { useMyBookings, type BookingListItem } from '@/hooks/use-booking';
-import { BOOKING_STATUS_GROUPS, groupBookingsByStatus, STATUS_LABELS } from '@/lib/booking-status';
+import { useTheme } from '@/hooks/use-theme';
+import {
+  BOOKING_STATUS_GROUPS,
+  groupBookingsByStatus,
+  STATUS_LABELS,
+  type BookingStatusGroup,
+} from '@/lib/booking-status';
 
 const PRICE = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -26,12 +32,26 @@ const DATE = new Intl.DateTimeFormat('en-IN', {
   minute: '2-digit',
 });
 
+/**
+ * One state, one look.
+ *
+ * Confirmed, assigned and in-progress were all the same soft cyan, so the two
+ * questions a customer actually has — is it booked, and has it started — had
+ * the same answer on screen. Completed was grey, which reads as "nothing
+ * happening" rather than "done".
+ *
+ * Now: amber when the customer owes something, quiet cyan while it waits, a
+ * filled badge for the one job being worked on right now, green when it is
+ * finished, red when it is off.
+ */
 const STATUS_TONE: Record<string, BadgeTone> = {
   pending_payment: 'warning',
   confirmed: 'primary',
+  // Still upcoming from the customer's side — somebody is lined up, but no
+  // work has started, and promoting it would blur the line that matters.
   assigned: 'primary',
-  in_progress: 'primary',
-  completed: 'neutral',
+  in_progress: 'active',
+  completed: 'success',
   cancelled: 'error',
 };
 
@@ -73,9 +93,15 @@ export default function BookingsScreen() {
 
                 return (
                   <View key={group} style={styles.group}>
-                    <ThemedText type="label" themeColor="textMuted">
-                      {group}
-                    </ThemedText>
+                    {/* A dot in the same colour as the badges below it, so the
+                        heading and its cards read as one thing while
+                        scrolling. */}
+                    <View style={styles.groupHead}>
+                      <GroupDot group={group} />
+                      <ThemedText type="label" themeColor="textMuted">
+                        {group}
+                      </ThemedText>
+                    </View>
                     {items.map((booking) => (
                       <BookingCard key={booking.id} booking={booking} />
                     ))}
@@ -88,6 +114,20 @@ export default function BookingsScreen() {
       </SafeAreaView>
     </ThemedView>
   );
+}
+
+/** The heading's colour cue, matching the badge tone of the cards under it. */
+function GroupDot({ group }: { group: BookingStatusGroup }) {
+  const theme = useTheme();
+
+  const colours: Record<BookingStatusGroup, string> = {
+    Upcoming: theme.primary,
+    'In Progress': theme.primary,
+    Completed: theme.success,
+    Cancelled: theme.error,
+  };
+
+  return <View style={[styles.dot, { backgroundColor: colours[group] }]} />;
 }
 
 function BookingCard({ booking }: { booking: BookingListItem }) {
@@ -108,7 +148,16 @@ function BookingCard({ booking }: { booking: BookingListItem }) {
         />
       </View>
 
-      <ThemedText type="small" themeColor="textSecondary">
+      {/* Which shop is doing the work. A customer books across shops now, so
+          the service name alone no longer says who has the job — and two shops
+          may well sell a service by the same name. */}
+      {booking.shops?.name ? (
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+          {booking.shops.name}
+        </ThemedText>
+      ) : null}
+
+      <ThemedText type="small" themeColor="textMuted">
         {DATE.format(new Date(booking.scheduled_at))}
       </ThemedText>
 
@@ -133,6 +182,8 @@ const styles = StyleSheet.create({
     gap: Spacing.four,
   },
   group: { gap: Spacing.two },
+  groupHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  dot: { width: 8, height: 8, borderRadius: Radius.full },
   card: { gap: Spacing.one },
   cardTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   cardTitle: { flex: 1 },

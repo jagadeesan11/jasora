@@ -132,6 +132,9 @@ export interface BookingListItem {
   net_price: number;
   services: { name: string } | null;
   technicians: { name: string } | null;
+  /** Which shop the job is with. A customer books across shops now, so the
+   *  service name alone no longer says who is doing the work. */
+  shops: { name: string } | null;
 }
 
 /**
@@ -148,7 +151,7 @@ export function useMyBookings(userId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('id, scheduled_at, status, total_price, discount_amount, discount_reason, promo_discount_amount, net_price, promo_codes(code), services(name), technicians(name)')
+        .select('id, scheduled_at, status, total_price, discount_amount, discount_reason, promo_discount_amount, net_price, promo_codes(code), services(name), technicians(name), shops(name)')
         .order('scheduled_at', { ascending: false })
         .returns<BookingListItem[]>();
 
@@ -173,7 +176,7 @@ export function useBooking(bookingId: string | undefined) {
       const { data, error } = await supabase
         .from('bookings')
         .select(
-          'id, created_at, scheduled_at, status, total_price, discount_amount, discount_reason, promo_discount_amount, net_price, promo_codes(code), addon_ids, service_id, services(name, duration_minutes), technicians(name)',
+          'id, created_at, scheduled_at, status, total_price, discount_amount, discount_reason, promo_discount_amount, net_price, promo_codes(code), addon_ids, service_id, services(name, duration_minutes), technicians(name), shops(name)',
         )
         .eq('id', bookingId!)
         .single()

@@ -89,18 +89,22 @@ export function DownloadBillButton({
         height: PAGE.height,
       });
 
-      // The generated file gets a random name. Renaming is worth attempting —
-      // this is a document people file and search for later — but never worth
-      // failing the download over, so a rename that does not work is ignored
-      // and the original file is shared instead.
+      // The generated file gets a random name, and this is a document people
+      // file and search for later, so it is worth giving it a real one.
+      //
+      // Copied rather than moved, and awaited. `move()` is asynchronous: firing
+      // it and reading `.uri` on the next line handed the share sheet a path
+      // the file had not arrived at yet, which surfaced as ENOENT. Copying also
+      // leaves the original in place, so if anything here fails there is still
+      // a file to share — the rename is a nicety and must never cost the PDF.
       let file = uri;
       try {
-        const { Directory, File, Paths } = await import('expo-file-system');
-        const target = new File(new Directory(Paths.cache), invoiceFileName(invoice.number));
+        const { File, Paths } = await import('expo-file-system');
+        const target = new File(Paths.cache, invoiceFileName(invoice.number));
         if (target.exists) target.delete();
-        const source = new File(uri);
-        source.move(target);
-        file = source.uri;
+        await new File(uri).copy(target);
+        // Only switch once the copy is actually on disk.
+        if (target.exists) file = target.uri;
       } catch {
         /* keep the generated name */
       }

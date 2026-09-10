@@ -9,7 +9,9 @@ import {
   LifeBuoy,
   Settings,
   Shield,
+  Clock,
   Star,
+  Store,
   Users,
   Wrench,
 } from 'lucide-react';
@@ -18,12 +20,12 @@ import { usePathname } from 'next/navigation';
 
 import { cn } from '@/lib/utils';
 
-// `adminOnly` marks the two areas that run the business rather than the shop:
-// who has an account, and how the whole product is configured. Everyone else
-// on the shop side gets the day-to-day screens.
+// `adminOnly` marks the areas that run the platform rather than a shop: which
+// shops exist, who has an account, and how the product is configured. Everyone
+// else on the shop side gets the day-to-day screens.
 //
-// This only hides the link. The segment layouts under /users and /settings do
-// the actual gating, because a hidden link is still a working URL.
+// This only hides the link. The segment layouts under /shops, /users and
+// /settings do the actual gating, because a hidden link is still a working URL.
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard', Icon: LayoutGrid },
   { href: '/categories', label: 'Categories', Icon: Layers },
@@ -31,9 +33,11 @@ const NAV_ITEMS = [
   { href: '/promo-codes', label: 'Promo codes', Icon: BadgePercent },
   { href: '/bookings', label: 'Bookings', Icon: CalendarCheck },
   { href: '/technicians', label: 'Technicians', Icon: Users },
+  { href: '/hours', label: 'Hours', Icon: Clock },
   { href: '/feedback', label: 'Feedback', Icon: Star },
   { href: '/support', label: 'Help requests', Icon: LifeBuoy },
   { href: '/reports', label: 'Reports', Icon: ChartColumn },
+  { href: '/shops', label: 'Shops', Icon: Store, adminOnly: true },
   { href: '/users', label: 'Users', Icon: Shield, adminOnly: true },
   { href: '/settings', label: 'Settings', Icon: Settings, adminOnly: true },
 ];

@@ -1,6 +1,10 @@
 import {
+  isOverdue,
   jobActivity,
+  needsAssignment,
+  openBookings,
   suggestTechnician,
+  whenLabel,
   type BoardBooking,
   type BoardTechnician,
 } from '@/lib/owner-board';
@@ -350,5 +354,56 @@ describe('jobActivity with booking history', () => {
       booking_events: [],
     });
     expect(events.map((e) => e.label)).toEqual(['Booked in the app']);
+  });
+});
+
+/**
+ * The inbox used to build its queues from today's bookings only, so a job
+ * nobody got to yesterday vanished overnight — still unassigned, still owed to
+ * a customer, and nowhere in the app. These cover the queue that replaced it.
+ */
+describe('open work', () => {
+  const yesterday = '2026-08-29T14:00:00';
+  const lastWeek = '2026-08-23T10:00:00';
+
+  it('keeps unfinished work from previous days', () => {
+    const open = openBookings([
+      booking({ id: 'a', scheduled_at: lastWeek, status: 'in_progress', technician_id: 't-arun' }),
+      booking({ id: 'b', scheduled_at: yesterday, status: 'confirmed' }),
+      booking({ id: 'c', scheduled_at: '2026-08-30T11:00:00' }),
+    ]);
+    expect(open.map((b) => b.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('drops work that is finished or called off, whenever it was', () => {
+    const open = openBookings([
+      booking({ id: 'done', scheduled_at: yesterday, status: 'completed' }),
+      booking({ id: 'off', scheduled_at: yesterday, status: 'cancelled' }),
+      booking({ id: 'live', scheduled_at: yesterday, status: 'assigned', technician_id: 't-arun' }),
+    ]);
+    expect(open.map((b) => b.id)).toEqual(['live']);
+  });
+
+  it('puts the job that has waited longest at the top of the queue', () => {
+    const queue = needsAssignment([
+      booking({ id: 'today', scheduled_at: '2026-08-30T11:00:00' }),
+      booking({ id: 'last-week', scheduled_at: lastWeek }),
+      booking({ id: 'yesterday', scheduled_at: yesterday }),
+    ]);
+    expect(queue.map((b) => b.id)).toEqual(['last-week', 'yesterday', 'today']);
+  });
+
+  it('counts a job before today as overdue, and one later today as not', () => {
+    expect(isOverdue(yesterday, NOW)).toBe(true);
+    // 09:00 now, scheduled 14:00 — late is not the same as another day.
+    expect(isOverdue('2026-08-30T14:00:00', NOW)).toBe(false);
+    expect(isOverdue('2026-08-30T08:00:00', NOW)).toBe(false);
+  });
+
+  it('says which day a job is on once the list spans more than one', () => {
+    expect(whenLabel('2026-08-30T14:00:00', NOW)).not.toMatch(/,/);
+    expect(whenLabel(yesterday, NOW)).toMatch(/^Yesterday, /);
+    expect(whenLabel('2026-08-31T14:00:00', NOW)).toMatch(/^Tomorrow, /);
+    expect(whenLabel(lastWeek, NOW)).toMatch(/^Sun 23 Aug, /);
   });
 });

@@ -20,7 +20,7 @@ const STATUSES: SupportStatus[] = ['open', 'in_progress', 'resolved'];
  * got as far as rendering the page.
  *
  * Unlike the Users actions, everything below writes as the caller: the RLS
- * policies on support_requests already gate on private.is_admin(), so the
+ * policies on support_requests are scoped to the caller's own shops, so the
  * service key would only remove the safety net, not add capability.
  */
 async function requireAdmin() {

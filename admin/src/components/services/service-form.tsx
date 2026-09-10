@@ -118,6 +118,23 @@ export function ServiceForm({
       return;
     }
 
+    // A partly filled row used to be dropped on the way to the database and
+    // the form then navigated away, so the row looked saved and was not. Say
+    // so instead, before anything is written.
+    const halfRule = ruleRows.find(
+      (r) => (r.conditionKey || r.conditionValue || r.price !== '') && !(r.conditionKey && r.price !== ''),
+    );
+    if (halfRule) {
+      setError('Every pricing rule needs a condition key and a price. Fill the row in, or remove it.');
+      return;
+    }
+
+    const halfAddon = addonRows.find((x) => (x.name || x.price !== '') && !(x.name && x.price !== ''));
+    if (halfAddon) {
+      setError('Every add-on needs a name and a price. Fill the row in, or remove it.');
+      return;
+    }
+
     setIsSubmitting(true);
     const supabase = createClient();
 
@@ -306,6 +323,17 @@ export function ServiceForm({
         <p className="mb-3 text-xs text-muted-foreground">
           Each rule overrides the base price when a condition matches, e.g. vehicle_size = suv.
         </p>
+        {/* Pricing rules are read only for tiered pricing — compute_booking_price
+            uses base_price directly for every other type. Saying so here stops
+            someone filling in rules that save correctly and then never apply,
+            which looks exactly like the rules not saving. */}
+        {pricingType !== 'tiered' ? (
+          <p className="mb-3 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
+            Pricing is set to <strong>{PRICING_TYPE_LABELS[pricingType] ?? pricingType}</strong>, so
+            these rules are stored but never used — the base price is charged. Switch pricing to
+            Tiered for them to take effect.
+          </p>
+        ) : null}
         <div className="space-y-2">
           {ruleRows.map((row) => (
             <div key={row.key} className="grid grid-cols-[1fr_1fr_120px_auto] items-center gap-2">

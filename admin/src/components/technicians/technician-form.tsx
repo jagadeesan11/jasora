@@ -13,9 +13,11 @@ import type { Category, Technician } from '@/types/database';
 export function TechnicianForm({
   technician,
   categories,
+  shopId,
 }: {
   technician?: Technician;
   categories: Category[];
+  shopId: string;
 }) {
   const router = useRouter();
   const isEditing = Boolean(technician);
@@ -49,7 +51,9 @@ export function TechnicianForm({
     const { error: saveError } =
       isEditing && technician
         ? await supabase.from('technicians').update(payload).eq('id', technician.id)
-        : await supabase.from('technicians').insert(payload);
+        : // shop_id on the insert only — an edit must not move someone to
+          // another shop.
+          await supabase.from('technicians').insert({ ...payload, shop_id: shopId });
 
     setIsSubmitting(false);
     if (saveError) {

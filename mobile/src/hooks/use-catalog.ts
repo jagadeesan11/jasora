@@ -1,15 +1,33 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { useAppSettings } from '@/hooks/use-app-settings';
 import { supabase } from '@/lib/supabase';
 import type { Category, Service, ServiceWithPricing } from '@/types';
 
-export function useCategories() {
+/**
+ * What a shop sells.
+ *
+ * Catalogue rows stay readable to everyone by policy — a shop front is meant to
+ * be browsable before anyone signs in — so nothing but this filter stops ten
+ * shops' categories arriving as one list.
+ *
+ * Defaults to the shop the app is in, which is what home and the booking flow
+ * want. The shop page passes its own id instead: it is reachable by deep link,
+ * and it should show that shop's catalogue on the first render rather than
+ * whatever was selected a moment ago.
+ */
+export function useCategories(forShopId?: string | null) {
+  const { shopId: currentShopId } = useAppSettings();
+  const shopId = forShopId ?? currentShopId;
+
   return useQuery({
-    queryKey: ['categories'],
+    queryKey: ['categories', shopId],
+    enabled: Boolean(shopId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('categories')
         .select('*')
+        .eq('shop_id', shopId!)
         .order('name')
         .returns<Category[]>();
 
@@ -19,6 +37,9 @@ export function useCategories() {
   });
 }
 
+// Not filtered by shop: a category belongs to exactly one, and phase 2's
+// composite foreign key makes a service under another shop's category
+// unrepresentable, so the category id already names the shop.
 export function useServicesByCategory(categoryId: string | undefined) {
   return useQuery({
     queryKey: ['services', 'by-category', categoryId],

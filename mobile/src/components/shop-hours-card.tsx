@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { Radius, Spacing } from '@/constants/theme';
 import { useBusinessHours, useShopClosures } from '@/hooks/use-hours';
+import { useAppSettings } from '@/hooks/use-app-settings';
 import { useTheme } from '@/hooks/use-theme';
 import { openStatus, weekSchedule } from '@/lib/scheduling';
 
@@ -17,12 +18,19 @@ import { openStatus, weekSchedule } from '@/lib/scheduling';
  * Collapsed to today by default. The full week is a reference people want
  * occasionally and a wall of text they scroll past the rest of the time.
  */
-export function ShopHoursCard() {
+/**
+ * Takes the shop as an optional prop, defaulting to the one the app is in.
+ * The shop page passes its own: it is reachable by deep link, and hours for
+ * whichever shop happened to be selected would be the wrong shop's.
+ */
+export function ShopHoursCard({ shopId: forShopId }: { shopId?: string | null } = {}) {
   const theme = useTheme();
   const [open, setOpen] = useState(false);
 
-  const { data: hours } = useBusinessHours();
-  const { data: closures } = useShopClosures();
+  const { shopId: currentShopId } = useAppSettings();
+  const shopId = forShopId ?? currentShopId;
+  const { data: hours } = useBusinessHours(shopId);
+  const { data: closures } = useShopClosures(shopId);
 
   const week = weekSchedule(hours);
   // Nothing to say until the hours arrive; an empty card is worse than none.

@@ -1,4 +1,5 @@
 import {
+  isSlotFull,
   formatClock,
   getBookableDays,
   getTimeSlotsForDay,
@@ -21,17 +22,38 @@ describe('getBookableDays', () => {
 });
 
 describe('getTimeSlotsForDay', () => {
-  it('generates half-hour slots between business hours for a future day', () => {
-    const now = new Date('2026-08-23T08:00:00');
+  it('generates half-hour slots across the booking window for a future day', () => {
+    const now = new Date('2026-08-23T05:00:00');
     const day = new Date('2026-08-25T00:00:00');
     const slots = getTimeSlotsForDay(day, now);
 
-    expect(slots[0].getHours()).toBe(9);
+    expect(slots[0].getHours()).toBe(7);
     expect(slots[0].getMinutes()).toBe(0);
-    expect(slots.at(-1)?.getHours()).toBe(17);
+    expect(slots.at(-1)?.getHours()).toBe(20);
     expect(slots.at(-1)?.getMinutes()).toBe(30);
-    // 9:00 to 17:30 inclusive, every 30 minutes = 18 slots
-    expect(slots).toHaveLength(18);
+    // 7:00 to 20:30 inclusive, every 30 minutes = 28 slots
+    expect(slots).toHaveLength(28);
+  });
+
+  it('offers slots outside the shop\'s opening hours', () => {
+    // The point of the change: hours say when the shop is staffed, not what may
+    // be requested. This shop closes at 17:00 and 19:00 is still offered.
+    const now = new Date('2026-08-23T05:00:00');
+    const day = new Date('2026-08-25T00:00:00');
+    const hours = [
+      { weekday: 2, is_open: true, opens_at: '09:00', closes_at: '17:00' },
+    ];
+
+    const slots = getTimeSlotsForDay(day, now, hours);
+    expect(slots.some((s) => s.getHours() === 19)).toBe(true);
+  });
+
+  it('still offers nothing on a date the shop has blocked', () => {
+    // A closure is the shop naming a day it will not work, which is a different
+    // thing from the hours it usually keeps.
+    const now = new Date('2026-08-23T05:00:00');
+    const day = new Date('2026-08-25T00:00:00');
+    expect(getTimeSlotsForDay(day, now, undefined, [{ closed_on: '2026-08-25' }])).toHaveLength(0);
   });
 
   it('excludes slots already in the past when the day is today', () => {
@@ -44,8 +66,8 @@ describe('getTimeSlotsForDay', () => {
     expect(slots.every((slot) => slot > now)).toBe(true);
   });
 
-  it('returns an empty list when business hours for today have already ended', () => {
-    const now = new Date('2026-08-23T19:00:00');
+  it('returns an empty list once the booking window for today has passed', () => {
+    const now = new Date('2026-08-23T21:30:00');
     const day = new Date('2026-08-23T00:00:00');
     expect(getTimeSlotsForDay(day, now)).toHaveLength(0);
   });
@@ -138,5 +160,48 @@ describe('openStatus', () => {
   it('is open exactly at opening time and shut exactly at closing time', () => {
     expect(openStatus(WEEK, [], new Date('2026-08-31T09:00:00')).open).toBe(true);
     expect(openStatus(WEEK, [], new Date('2026-08-31T19:00:00')).open).toBe(false);
+  });
+});
+
+/**
+ * The picker's half of capacity. The server refuses an overbooked slot either
+ * way; this is what stops a customer finding that out at the end of the form.
+ */
+describe('isSlotFull', () => {
+  // A sixty-hour job, which is what a paint protection booking actually is.
+  const busy = [{ starts_at: '2026-08-31T04:30:00.000Z', ends_at: '2026-09-02T16:30:00.000Z' }];
+
+  it('is not full when the shop has nothing on', () => {
+    expect(isSlotFull(new Date('2026-08-31T05:00:00.000Z'), 60, [], 1)).toBe(false);
+    expect(isSlotFull(new Date('2026-08-31T05:00:00.000Z'), 60, undefined, 1)).toBe(false);
+  });
+
+  it('is full in the middle of a long job, not only at its start', () => {
+    // A day into a job that runs for two and a half.
+    expect(isSlotFull(new Date('2026-09-01T05:00:00.000Z'), 60, busy, 1)).toBe(true);
+  });
+
+  it('is free once the job has ended', () => {
+    expect(isSlotFull(new Date('2026-09-02T17:00:00.000Z'), 60, busy, 1)).toBe(false);
+  });
+
+  it('is free when a long booking starts after this slot ends', () => {
+    expect(isSlotFull(new Date('2026-08-31T03:00:00.000Z'), 60, busy, 1)).toBe(false);
+  });
+
+  it('counts the job being booked, not just the one already there', () => {
+    // A sixty-hour job starting the day before overlaps a booking that has not
+    // begun yet, because the new job runs into it.
+    expect(isSlotFull(new Date('2026-08-30T04:30:00.000Z'), 3600, busy, 1)).toBe(true);
+  });
+
+  it('lets a second job in when the shop has two bays', () => {
+    expect(isSlotFull(new Date('2026-09-01T05:00:00.000Z'), 60, busy, 2)).toBe(false);
+  });
+
+  it('treats a service with no duration as an hour rather than as nothing', () => {
+    // Ending inside the busy interval: with a zero-length job this would read
+    // as free and capacity would not apply.
+    expect(isSlotFull(new Date('2026-08-31T04:00:00.000Z'), null, busy, 1)).toBe(true);
   });
 });

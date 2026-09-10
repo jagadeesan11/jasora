@@ -10,7 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Card } from '@/components/ui/card';
 import { ErrorState, SkeletonList } from '@/components/ui/feedback';
 import { Radius, Spacing } from '@/constants/theme';
-import { useAppSettings } from '@/hooks/use-app-settings';
+import { useMyShop } from '@/hooks/use-my-shop';
 import {
   useOwnerBookings,
   useTechnicians,
@@ -26,7 +26,10 @@ import {
   needsAssignment,
   statusTone,
   suggestTechnician,
+  isOverdue,
+  openBookings,
   todaysBookings,
+  whenLabel,
   TONE_LABELS,
   type TechnicianSuggestion,
 } from '@/lib/owner-board';
@@ -50,7 +53,8 @@ function vehicleOf(b: OwnerBooking): string | null {
 
 export default function OwnerInboxScreen() {
   const theme = useTheme();
-  const { settings } = useAppSettings();
+  // The shop being managed, not the one this person books with as a customer.
+  const { shop: managed } = useMyShop();
   const { data, isLoading, isError, error, refetch, isRefetching } = useOwnerBookings();
   const { data: technicians } = useTechnicians();
   const update = useUpdateBooking();
@@ -59,11 +63,16 @@ export default function OwnerInboxScreen() {
   const [problem, setProblem] = useState<string | null>(null);
 
   const board = useMemo(() => {
+    // Two different questions, and they had the same answer before, which is
+    // why unfinished work disappeared at midnight. The queues are about what
+    // the shop still owes, whenever it was booked; the figures are about
+    // today, because "booked today" means today.
+    const open = openBookings(data);
     const today = todaysBookings(data);
     return {
-      today,
-      needs: needsAssignment(today),
-      bay: inTheBay(today),
+      open,
+      needs: needsAssignment(open),
+      bay: inTheBay(open),
       booked: bookedToday(today),
       left: jobsLeft(today),
       cash: cashToCollect(today),
@@ -98,7 +107,7 @@ export default function OwnerInboxScreen() {
           <View style={styles.header}>
             <View style={styles.headerCopy}>
               <ThemedText type="label" themeColor="textMuted" numberOfLines={1}>
-                {[settings.shop_name, settings.shop_city].filter(Boolean).join(' · ')}
+                {[managed?.name, managed?.city].filter(Boolean).join(' · ')}
               </ThemedText>
               {/* "Today" rather than a greeting: this screen is a day's board,
                   and the heading should say which day it is showing. */}
@@ -111,7 +120,7 @@ export default function OwnerInboxScreen() {
               hitSlop={8}
               style={({ pressed }) => [pressed && { opacity: 0.8 }]}
             >
-              <ShopAvatar size={40} />
+              <ShopAvatar url={managed?.logo_url ?? null} name={managed?.name} size={40} />
             </Pressable>
           </View>
 
@@ -184,7 +193,7 @@ export default function OwnerInboxScreen() {
                         )}
                         <NeedsRow
                           booking={b}
-                          suggestion={suggestTechnician(b, technicians, board.today)}
+                          suggestion={suggestTechnician(b, technicians, board.open)}
                           onAssign={() => setAssigning(b)}
                         />
                       </View>
@@ -211,10 +220,10 @@ export default function OwnerInboxScreen() {
                 </Section>
               )}
 
-              {board.today.length === 0 && (
+              {board.open.length === 0 && (
                 <View style={styles.body}>
                   <Card style={styles.empty}>
-                    <ThemedText type="bodyMedium">Nothing booked today</ThemedText>
+                    <ThemedText type="bodyMedium">Nothing outstanding</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
                       New bookings from the app land here as they come in.
                     </ThemedText>
@@ -232,7 +241,7 @@ export default function OwnerInboxScreen() {
             // Opens on whoever the board suggested, so the common case is open
             // then confirm. Anyone else is still one tap away in the list.
             currentTechnicianId={
-              suggestTechnician(assigning, technicians, board.today)?.technicianId ?? null
+              suggestTechnician(assigning, technicians, board.open)?.technicianId ?? null
             }
             jobLine={`${assigning.services?.name ?? 'Service'} · ${customerName(assigning)}`}
             busy={update.isPending}
@@ -331,8 +340,14 @@ function NeedsRow({
           </ThemedText>
           <ThemedText type="smallBold">{PRICE.format(booking.net_price)}</ThemedText>
         </View>
-        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-          {[customerName(booking), vehicle, TIME.format(new Date(booking.scheduled_at))]
+        {/* Red when the job was due on an earlier day. The queue spans days
+            now, so "waiting" and "late" need to look different. */}
+        <ThemedText
+          type="small"
+          themeColor={isOverdue(booking.scheduled_at) ? 'error' : 'textSecondary'}
+          numberOfLines={1}
+        >
+          {[customerName(booking), vehicle, whenLabel(booking.scheduled_at)]
             .filter(Boolean)
             .join(' · ')}
         </ThemedText>
@@ -414,8 +429,12 @@ function BayRow({ booking }: { booking: OwnerBooking }) {
         <ThemedText type="bodyMedium" numberOfLines={1}>
           {booking.services?.name ?? 'Service'}
         </ThemedText>
-        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-          {[booking.technicians?.name, TIME.format(new Date(booking.scheduled_at))]
+        <ThemedText
+          type="small"
+          themeColor={isOverdue(booking.scheduled_at) ? 'error' : 'textSecondary'}
+          numberOfLines={1}
+        >
+          {[booking.technicians?.name, whenLabel(booking.scheduled_at)]
             .filter(Boolean)
             .join(' · ')}
         </ThemedText>

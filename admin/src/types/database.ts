@@ -23,6 +23,8 @@ export type PricingType = 'fixed' | 'tiered' | 'per_unit';
 
 export interface Category {
   id: ID;
+  /** The owning shop. NOT NULL since the multi-tenancy migration. */
+  shop_id: ID;
   name: string;
   slug: string;
   icon: string | null;
@@ -88,6 +90,7 @@ export type TechnicianStatus = 'active' | 'inactive';
 
 export interface Technician {
   id: ID;
+  shop_id: ID;
   profile_id: ID | null;
   name: string;
   phone: string | null;
@@ -95,22 +98,30 @@ export interface Technician {
   status: TechnicianStatus;
 }
 
-/** Singleton row — see 20260824120000_app_settings.sql. */
-export interface AppSettings {
-  id: boolean;
-  shop_name: string;
-  shop_logo_url: string | null;
+/**
+ * One shop's public face — the columns the admin edits under Settings.
+ *
+ * Replaces the AppSettings singleton, whose whole design was that there could
+ * only ever be one shop. The shop_ prefixes are gone with it: a column on
+ * shops does not need to say which shop it belongs to.
+ */
+export interface ShopSettings {
+  id: ID;
+  slug: string;
+  name: string;
+  logo_url: string | null;
   support_email: string | null;
   support_phone: string | null;
-  shop_address_line: string | null;
-  shop_city: string | null;
-  shop_postal_code: string | null;
+  address_line: string | null;
+  city: string | null;
+  postal_code: string | null;
   cod_enabled: boolean;
   online_payment_enabled: boolean;
   privacy_url: string | null;
   instagram_url: string | null;
   whatsapp_number: string | null;
   terms_url: string | null;
+  is_active: boolean;
   updated_at: string;
 }
 

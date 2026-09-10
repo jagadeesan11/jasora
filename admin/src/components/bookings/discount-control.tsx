@@ -19,9 +19,9 @@ const PRICE = new Intl.NumberFormat('en-IN', {
  * Granting a discount on a single job.
  *
  * Written with the caller's own session, not a service key: the RLS policies
- * and the enforce_customer_booking_transitions guard both key off
- * private.is_admin(), so this fails safely for anyone who reaches the page
- * without the role.
+ * and the enforce_customer_booking_transitions guard both key off being staff
+ * of this booking's shop, so this fails safely for anyone who reaches the page
+ * without that standing.
  *
  * The database is the real gate — it refuses a discount above the price, a
  * negative one, and any change once money has been received. This form only

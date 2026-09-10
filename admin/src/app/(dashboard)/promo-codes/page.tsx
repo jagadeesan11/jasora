@@ -1,24 +1,30 @@
 import { PageHeader } from '@/components/page-header';
 import { PromoCodesManager } from '@/components/promo-codes/promo-codes-manager';
+import { getShopContext } from '@/lib/shop';
 import { createClient } from '@/lib/supabase/server';
 import type { PromoCode, PromoCodeWithUsage } from '@/types/promo';
 
 export default async function PromoCodesPage() {
   const supabase = await createClient();
+  const { shop } = await getShopContext();
+  const shopId = shop?.id ?? '';
 
   const [{ data: codes, error }, { data: redemptions }, { data: categories }, { data: services }] =
     await Promise.all([
       supabase
         .from('promo_codes')
         .select('*')
+        .eq('shop_id', shopId)
         .order('created_at', { ascending: false })
         .returns<PromoCode[]>(),
       supabase
         .from('promo_redemptions')
         .select('promo_code_id, amount_discounted, released_at')
         .returns<{ promo_code_id: string; amount_discounted: number; released_at: string | null }[]>(),
-      supabase.from('categories').select('id, name').order('name'),
-      supabase.from('services').select('id, name').order('name'),
+      // The pickers a code can be restricted to. Same shop, or a code could be
+      // scoped to a category it can never apply to.
+      supabase.from('categories').select('id, name').eq('shop_id', shopId).order('name'),
+      supabase.from('services').select('id, name').eq('shop_id', shopId).order('name'),
     ]);
 
   // Aggregated here rather than in SQL: PostgREST has no GROUP BY, and at this

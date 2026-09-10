@@ -14,12 +14,27 @@ import { initialsOf } from '@/lib/team';
  * fail to load on a bad connection — hence the initials underneath rather than
  * an empty square. `onError` falls back at runtime too, because a URL that
  * once worked can stop working.
+ *
+ * Takes the shop as optional props so it can also render a shop that is not
+ * the current one — the picker draws every shop before there is a current one
+ * to read. Left off, it shows whichever shop the app is in.
  */
-export function ShopAvatar({ size = 40, style }: { size?: number; style?: ViewStyle }) {
+export function ShopAvatar({
+  size = 40,
+  style,
+  url: urlProp,
+  name: nameProp,
+}: {
+  size?: number;
+  style?: ViewStyle;
+  url?: string | null;
+  name?: string;
+}) {
   const theme = useTheme();
   const { settings } = useAppSettings();
 
-  const url = settings.shop_logo_url;
+  const url = urlProp !== undefined ? urlProp : settings.shop_logo_url;
+  const name = nameProp ?? settings.shop_name;
   const box = {
     width: size,
     height: size,
@@ -33,7 +48,7 @@ export function ShopAvatar({ size = 40, style }: { size?: number; style?: ViewSt
           source={{ uri: url }}
           style={box}
           resizeMode="cover"
-          accessibilityLabel={settings.shop_name}
+          accessibilityLabel={name}
         />
       </View>
     );
@@ -42,7 +57,7 @@ export function ShopAvatar({ size = 40, style }: { size?: number; style?: ViewSt
   return (
     <View style={[box, styles.frame, { backgroundColor: theme.primary }, style]}>
       <ThemedText type="smallBold" style={{ color: theme.primaryText }}>
-        {initialsOf(settings.shop_name)}
+        {initialsOf(name)}
       </ThemedText>
     </View>
   );
