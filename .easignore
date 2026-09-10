@@ -24,3 +24,16 @@ supabase/
 .claude/
 *.log
 .DS_Store
+
+# Service-account keys. `eas submit` reads the Play key from this machine, so
+# no credential ever needs to travel to the build servers inside the archive.
+mobile/*-service-account*.json
+mobile/nexora-*-*.json
+mobile/jasora-*-*.json
+mobile/google-play-*.json
+
+# Signing keystores and the plaintext credentials.json that `eas credentials`
+# can write next to them. EAS signs on its own servers from the copy it holds.
+mobile/*.jks
+mobile/*.p12
+mobile/credentials.json

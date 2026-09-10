@@ -42,6 +42,16 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        // Service account key from Google Cloud project jasora-508110. Read
+        // from the local machine at submit time, never uploaded with a build
+        // (see .easignore) and never committed (see mobile/.gitignore).
+        "serviceAccountKeyPath": "./jasora-508110-d29361e22a79.json",
+        // First stop for every release. Promote to production from the Play
+        // Console once the internal testers have had it.
+        "track": "internal"
+      }
+    }
   }
 }

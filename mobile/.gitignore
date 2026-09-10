@@ -51,3 +51,7 @@ example
 *-service-account*.json
 nexora-*-*.json
 google-play-*.json
+
+# Written by `eas credentials` when downloading credentials locally: holds the
+# keystore passwords and key alias in plaintext.
+credentials.json
