@@ -58,7 +58,13 @@ function Hit({ hit }: { hit: SearchHit }) {
   if (hit.kind === 'shop') {
     return (
       <Card
-        onPress={() => void choose(hit.id)}
+        onPress={() => {
+          // Selecting the shop was all this used to do, which left the tap looking
+          // broken: the results stayed on screen and nothing said anything had
+          // happened. Open it, the same as tapping it in the home listing.
+          void choose(hit.id);
+          router.push({ pathname: '/(app)/home/shop/[shopId]', params: { shopId: hit.id } });
+        }}
         style={styles.card}
         accessibilityLabel={`${hit.name}, shop`}
       >

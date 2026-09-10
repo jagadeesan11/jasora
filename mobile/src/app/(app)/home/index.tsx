@@ -77,6 +77,10 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
+          // The search results sit in the header while the keyboard is still up,
+          // and the default swallows that first tap to dismiss it — every
+          // result read as unresponsive until you tapped it twice.
+          keyboardShouldPersistTaps="handled"
           ListHeaderComponent={header}
           ListEmptyComponent={
             <View style={styles.body}>
