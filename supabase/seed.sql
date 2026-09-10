@@ -6,8 +6,18 @@ insert into public.input_templates (id, name, fields) values (
   '11111111-1111-1111-1111-111111111111',
   'Car Care Vehicle Info',
   '[
-    {"name": "vehicle_make", "label": "Vehicle Make", "type": "text", "required": true},
-    {"name": "vehicle_model", "label": "Vehicle Model", "type": "text", "required": true},
+    {"name": "vehicle_make", "label": "Vehicle Make", "type": "select", "required": true,
+     "options": ["Audi", "BMW", "BYD", "Chevrolet", "Citroen", "Datsun", "Fiat", "Force",
+                 "Ford", "Honda", "Hyundai", "Isuzu", "Jaguar", "Jeep", "Kia", "Land Rover",
+                 "Lexus", "Mahindra", "Maruti Suzuki", "Mercedes-Benz", "MG", "Mini",
+                 "Nissan", "Porsche", "Renault", "Skoda", "Tata", "Toyota", "Volkswagen",
+                 "Volvo", "Other"]},
+    {"name": "vehicle_model", "label": "Vehicle Model", "type": "text", "required": true,
+     "hint": "The model only — no variant, trim or year. Swift, Creta, Nexon."},
+    {"name": "vehicle_registration", "label": "Registration Number", "type": "text", "required": true,
+     "hint": "As on the number plate, e.g. TN09AB1234."},
+    {"name": "vehicle_fuel", "label": "Fuel", "type": "select", "required": true,
+     "options": ["Petrol", "Diesel", "CNG", "Electric"]},
     {"name": "vehicle_size", "label": "Vehicle Size", "type": "select", "required": true, "options": ["hatchback", "sedan", "suv"]}
   ]'::jsonb
 );

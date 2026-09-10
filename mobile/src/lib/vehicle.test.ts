@@ -1,4 +1,4 @@
-import { vehicleLabel, vehicleSize } from '@/lib/vehicle';
+import { vehicleFuel, vehicleLabel, vehicleRegistration, vehicleSize } from '@/lib/vehicle';
 
 // Exactly as the rows are stored in customer_assets.
 const REAL = { vehicle_make: 'Maruti Suzuki', vehicle_size: 'suv', vehicle_model: 'Baleno' };
@@ -53,5 +53,37 @@ describe('vehicleSize', () => {
   it('returns null when nobody recorded one', () => {
     expect(vehicleSize({})).toBeNull();
     expect(vehicleSize(null)).toBeNull();
+  });
+});
+
+describe('vehicleRegistration', () => {
+  it('upper-cases the plate however it was typed', () => {
+    expect(vehicleRegistration({ vehicle_registration: 'tn09ab1234' })).toBe('TN09AB1234');
+    expect(vehicleRegistration({ vehicle_registration: ' KA 05 MG 2255 ' })).toBe('KA 05 MG 2255');
+  });
+
+  it('returns null when nobody recorded one', () => {
+    // Every booking taken before the field existed.
+    expect(vehicleRegistration({})).toBeNull();
+    expect(vehicleRegistration({ vehicle_registration: '  ' })).toBeNull();
+    expect(vehicleRegistration(null)).toBeNull();
+  });
+});
+
+describe('vehicleFuel', () => {
+  it('keeps the spelling the list uses', () => {
+    expect(vehicleFuel({ vehicle_fuel: 'Petrol' })).toBe('Petrol');
+    expect(vehicleFuel({ vehicle_fuel: 'CNG' })).toBe('CNG');
+  });
+
+  it('tidies what was typed before the field was a list', () => {
+    expect(vehicleFuel({ vehicle_fuel: 'diesel' })).toBe('Diesel');
+    expect(vehicleFuel({ vehicle_fuel: 'cng' })).toBe('CNG');
+    expect(vehicleFuel({ vehicle_fuel: 'ev' })).toBe('Electric');
+  });
+
+  it('returns null when nobody recorded one', () => {
+    expect(vehicleFuel({})).toBeNull();
+    expect(vehicleFuel(null)).toBeNull();
   });
 });

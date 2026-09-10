@@ -8,6 +8,8 @@ export interface InputTemplateField {
   type: 'text' | 'number' | 'select';
   required: boolean;
   options?: string[];
+  /** Shown under the label, for what the shop wants in the box. */
+  hint?: string;
 }
 
 export interface InputTemplate {
