@@ -22,7 +22,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { BOOKING_TIMELINE_STATUSES, STATUS_LABELS } from '@/lib/booking-status';
 import { isSameDay, jobActivity, nextAction, statusTone } from '@/lib/owner-board';
 import { initialsOf } from '@/lib/team';
-import { vehicleLabel, vehicleSize } from '@/lib/vehicle';
+import { vehicleFuel, vehicleLabel, vehicleRegistration, vehicleSize } from '@/lib/vehicle';
 
 const PRICE = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -76,7 +76,9 @@ export default function OwnerJobScreen() {
   const phone = job.contact_phone || job.profiles?.phone || null;
   const attrs = job.customer_assets?.attributes ?? {};
   const vehicle = vehicleLabel(attrs);
+  const registration = vehicleRegistration(attrs);
   const size = vehicleSize(attrs);
+  const fuel = vehicleFuel(attrs);
   const address = [job.service_address, job.service_city].filter(Boolean).join(', ');
   const settled = (job.payments ?? []).some((p) => p.status === 'paid');
   const busy = update.isPending || collect.isPending;
@@ -245,7 +247,11 @@ export default function OwnerJobScreen() {
           <Card style={styles.card}>
             <View style={styles.grid}>
               <Cell label="Vehicle" value={vehicle ?? '—'} />
+              {/* The plate, because it is what the shop calls the car once it is
+                  on the ramp and two Swifts look the same from the door. */}
+              <Cell label="Registration" value={registration ?? '—'} />
               <Cell label="Size" value={size ?? '—'} />
+              <Cell label="Fuel" value={fuel ?? '—'} />
               <Cell label="Slot" value={SLOT.format(new Date(job.scheduled_at))} />
               <Cell
                 label="Duration"

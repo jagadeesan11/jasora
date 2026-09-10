@@ -43,6 +43,8 @@ export interface InputTemplateField {
   type: InputFieldType;
   required: boolean;
   options?: string[];
+  /** Shown under the label in the app, for what the shop wants in the box. */
+  hint?: string;
 }
 
 export interface InputTemplate {

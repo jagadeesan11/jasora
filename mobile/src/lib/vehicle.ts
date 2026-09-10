@@ -1,7 +1,8 @@
 /**
  * Reading a vehicle out of a customer asset's free-form attributes.
  *
- * The keys are `vehicle_make`, `vehicle_model` and `vehicle_size`. Two screens
+ * The keys are `vehicle_make`, `vehicle_model`, `vehicle_registration`,
+ * `vehicle_fuel` and `vehicle_size`. Two screens
  * had been reaching for `make` and `model`, which do not exist — so both came
  * back undefined and the label quietly fell through to the only key that did
  * match, printing the size where the vehicle should be. It looked like a
@@ -17,6 +18,13 @@ export type VehicleAttributes = Record<string, string> | null | undefined;
 const SIZE_LABELS: Record<string, string> = {
   suv: 'SUV',
   muv: 'MUV',
+};
+
+/** Same again for fuels, for the assets booked before the field was a list. */
+const FUEL_LABELS: Record<string, string> = {
+  cng: 'CNG',
+  ev: 'Electric',
+  lpg: 'LPG',
 };
 
 function titleCase(value: string): string {
@@ -38,10 +46,29 @@ export function vehicleLabel(attrs: VehicleAttributes): string | null {
     .filter((p): p is string => Boolean(p));
 
   if (parts.length === 0) return null;
-  // Makes are typed by hand and arrive as "tata" or "KIA". Left alone: an
-  // owner who typed "KIA" should not be shown "Kia", and title-casing every
-  // make would mangle the ones that are genuinely initialisms.
+  // Left alone. Makes come from a list now and are already spelled the way the
+  // manufacturer spells them, and the ones booked before that list existed were
+  // typed by hand as "tata" or "KIA" — title-casing those would turn a genuine
+  // initialism into "Kia" and still not agree with the list.
   return parts.join(' ');
+}
+
+/**
+ * "TN09AB1234". Upper-cased because a number plate is, however it was typed,
+ * and a shop scanning a list of jobs should not have to read two spellings of
+ * the same registration.
+ */
+export function vehicleRegistration(attrs: VehicleAttributes): string | null {
+  const raw = attrs?.vehicle_registration?.trim();
+  if (!raw) return null;
+  return raw.toUpperCase();
+}
+
+/** "Petrol", "CNG", "Electric". Null when nobody recorded one. */
+export function vehicleFuel(attrs: VehicleAttributes): string | null {
+  const raw = attrs?.vehicle_fuel?.trim();
+  if (!raw) return null;
+  return FUEL_LABELS[raw.toLowerCase()] ?? titleCase(raw);
 }
 
 /** "SUV", "Sedan", "Hatchback". Null when nobody recorded one. */

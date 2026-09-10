@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import { createClient } from '@/lib/supabase/client';
 import type { Category, InputFieldType, InputTemplate, InputTemplateField } from '@/types/database';
 
@@ -31,6 +32,7 @@ interface FieldRow {
   type: InputFieldType;
   required: boolean;
   options: string;
+  hint: string;
 }
 
 function newFieldRow(field?: InputTemplateField): FieldRow {
@@ -40,7 +42,10 @@ function newFieldRow(field?: InputTemplateField): FieldRow {
     label: field?.label ?? '',
     type: field?.type ?? 'text',
     required: field?.required ?? true,
-    options: field?.options?.join(', ') ?? '',
+    // One per line. A list of thirty vehicle makes is unreadable as one long
+    // comma-separated line, and both separators parse on the way back in.
+    options: field?.options?.join('\n') ?? '',
+    hint: field?.hint ?? '',
   };
 }
 
@@ -92,8 +97,9 @@ export function CategoryForm({
       type: r.type,
       required: r.required,
       ...(r.type === 'select'
-        ? { options: r.options.split(',').map((o) => o.trim()).filter(Boolean) }
+        ? { options: r.options.split(/[,\n]/).map((o) => o.trim()).filter(Boolean) }
         : {}),
+      ...(r.hint.trim() ? { hint: r.hint.trim() } : {}),
     }));
 
     setIsSubmitting(true);
@@ -207,7 +213,9 @@ export function CategoryForm({
           <div>
             <h2 className="text-sm font-semibold">Booking input fields</h2>
             <p className="text-xs text-muted-foreground">
-              What a booking for this category needs to collect (e.g. vehicle make/model/size).
+              What a booking for this category needs to collect (e.g. vehicle
+              make/model/registration/fuel/size). A select with eight or more options opens as a
+              searchable list in the app rather than a row of chips.
             </p>
           </div>
           <Button
@@ -265,10 +273,16 @@ export function CategoryForm({
               >
                 Remove
               </Button>
+              <Input
+                className="col-span-5"
+                placeholder="hint shown under the label (e.g. Model only — no variant or year)"
+                value={row.hint}
+                onChange={(e) => updateFieldRow(row.key, { hint: e.target.value })}
+              />
               {row.type === 'select' && (
-                <Input
-                  className="col-span-5"
-                  placeholder="options, comma-separated (e.g. hatchback, sedan, suv)"
+                <Textarea
+                  className="col-span-5 min-h-24"
+                  placeholder="options, one per line — hatchback, sedan, suv"
                   value={row.options}
                   onChange={(e) => updateFieldRow(row.key, { options: e.target.value })}
                 />
